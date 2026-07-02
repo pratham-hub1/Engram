@@ -1,0 +1,21 @@
+# Memory AI Project Requirements
+# Backend Framework
+fastapi
+uvicorn[standard]
+
+# Memory Engine
+cognee
+
+# Database (State)
+aiosqlite
+
+# Configuration & Logging
+pydantic-settings
+structlog
+
+# Core Utilities
+watchdog
+gitpython
+
+# LLM integration (for when we use custom model endpoints)
+litellm

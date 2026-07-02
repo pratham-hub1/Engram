@@ -1,0 +1,229 @@
+{
+  "project": {
+    "name": "Memory AI",
+    "description": "A local-first AI memory layer that continuously understands software projects, preserves knowledge using Cognee, and makes that understanding instantly available to developers and AI assistants.",
+    "mission": "Eliminate the pain of losing project understanding across time, sessions, tools, and AI assistants.",
+    "status": "Phase 0 — Not Started"
+  },
+
+  "documentation": {
+    "reading_order": [
+      "CODEBASE_MEMORY.md",
+      "ARCHITECTURE.md",
+      "PRODUCT_PRINCIPLES.md",
+      "PRODUCT_SPEC.md",
+      "IMPLEMENTATION_PLAN.md"
+    ],
+    "files": {
+      "CODEBASE_MEMORY.md": "Read first, always. Compressed project state for AI sessions.",
+      "PRODUCT_PRINCIPLES.md": "Non-negotiable principles. Read when making product or UX decisions.",
+      "PRODUCT_SPEC.md": "Feature specification. Read when implementing a specific feature.",
+      "ARCHITECTURE.md": "System design and component boundaries. Read when working on architecture.",
+      "IMPLEMENTATION_PLAN.md": "Build phases and progress. Read when starting or continuing a phase.",
+      "README.md": "Human-facing overview. Do not use as technical reference."
+    },
+    "rules": {
+      "update_codebase_memory_when": [
+        "Current implementation phase changes",
+        "Major architectural decision is made",
+        "Product scope changes",
+        "Technology stack changes"
+      ],
+      "never_update_codebase_memory_for": [
+        "Individual commits",
+        "Bug fixes",
+        "Refactors that do not change architecture",
+        "UI changes"
+      ],
+      "no_information_duplication": true
+    }
+  },
+
+  "ai_roles": {
+    "claude": {
+      "role": "Principal Architect and Technical Reviewer",
+      "responsibilities": [
+        "Architecture decisions",
+        "Phase planning",
+        "Technical review",
+        "Design decisions",
+        "Documentation updates"
+      ],
+      "location": "Planning conversation (brain)"
+    },
+    "gemini": {
+      "role": "Implementation Engineer",
+      "responsibilities": [
+        "Writing production code",
+        "Implementing phases",
+        "Following architecture decisions",
+        "Updating CODEBASE_MEMORY.md when phase changes"
+      ],
+      "location": "Coding conversation"
+    }
+  },
+
+  "coding_preferences": {
+    "language": "Python 3.11+",
+    "backend_framework": "FastAPI",
+    "frontend_framework": "React + Vite",
+    "styling": "Vanilla CSS",
+    "cli_framework": "Typer",
+    "async_pattern": "asyncio throughout",
+    "style": {
+      "prefer_simplicity_over_cleverness": true,
+      "module_size": "small, single responsibility",
+      "abstraction_level": "avoid unnecessary abstractions",
+      "readability": "prefer readable over compact"
+    }
+  },
+
+  "constraints": {
+    "zero_cost": true,
+    "llm_provider": {
+      "default": "gemini-1.5-flash",
+      "reason": "Flash has significantly higher free-tier rate limits than Pro. Cognee makes its own LLM calls during remember() and improve() — same quota as application calls. Flash prevents exhaustion.",
+      "fallback": "Cognee Cloud (if included models available)",
+      "future": "Ollama (local, offline)",
+      "never_use_paid_apis_during_development": true
+    },
+    "local_first": true,
+    "data_policy": "Project data must not leave the developer's machine except for LLM API calls"
+  },
+
+  "architecture_rules": {
+    "source_of_truth": "Cognee",
+    "component_boundaries": {
+      "observer": "Observes only. Never interprets. Never stores.",
+      "event_intelligence": "Filters only. Never stores.",
+      "memory_pipeline": "Ingests only. Never answers questions.",
+      "cognee": "Owns all memory. Source of truth.",
+      "memory_orchestrator": "Builds queries and formats output only. Never stores. Never re-ranks.",
+      "dashboard": "Visualizes only. Never edits memory.",
+      "mcp_server": "Exposes memory to AI tools. Never owns memory."
+    },
+    "hard_rules": [
+      "Manual notes bypass the Observer. They enter at the Memory Pipeline.",
+      "Memory Orchestrator returns normalized output. Consumers format independently.",
+      "Memory Orchestrator does NOT re-rank recall() results. Cognee ranks via importance_weight.",
+      "Retrieved facts and AI interpretations must always be visually distinguished.",
+      "Deduplicator must run before every cognee.remember() call.",
+      "MCP Server is a core deliverable, not optional polish.",
+      "Dashboard is read-only. No memory editing through the UI.",
+      "One Cognee dataset per project, keyed by project directory path.",
+      "Memory Health stats come from application SQLite log only. Never from Cognee internal databases."
+    ]
+  },
+
+  "memory_model": {
+    "tier_1": {
+      "name": "Automatic Observation",
+      "description": "Passive capture of git commits, file changes, docs, deps, config.",
+      "user_action_required": false
+    },
+    "tier_2": {
+      "name": "Decision Notes",
+      "description": "Manual capture of architectural decisions and reasoning.",
+      "user_action_required": true,
+      "example": "memory note \"Chose JWT because Firebase pricing scales poorly.\""
+    }
+  },
+
+  "cognee_usage": {
+    "local_backend": {
+      "relational": "SQLite (embedded, .cognee_system/)",
+      "vector": "LanceDB (embedded, .cognee_system/)",
+      "graph": "KuzuDB (embedded, .cognee_system/)",
+      "note": "No Docker or external services required. Never query these databases directly."
+    },
+    "remember": {
+      "required_params": "self_improvement=False, run_in_background=True, node_set=<category>, dataset_name=<project-id>",
+      "after_call": "Store returned data_id UUID in application SQLite log immediately",
+      "bulk_ingestion": "Pass List[str] for multiple items — do not loop with individual calls"
+    },
+    "node_set_taxonomy": {
+      "decisions": "Architectural decisions (Why Capture + manual notes)",
+      "commits": "Git commit structural changes",
+      "dependencies": "Dependency file changes (package.json, requirements.txt, etc.)",
+      "config": "Configuration file changes",
+      "modules": "Module or directory creation/deletion"
+    },
+    "recall": {
+      "ranking": "Pre-ranked by importance_weight — do not re-rank",
+      "scoping": "Use node_set for category filter, query_type for strategy",
+      "query_routing": {
+        "why_question": {"node_set": "decisions", "query_type": "graph-completion"},
+        "timeline_question": {"node_set": "commits", "query_type": "vector"},
+        "general_question": {"node_set": null, "query_type": "hybrid"}
+      }
+    },
+    "improve": {
+      "trigger": "Explicit only: once after initial indexing + every 60 minutes on schedule",
+      "never": "Never automatic. self_improvement=False on all remember() calls.",
+      "duration": "Heavy operation — takes minutes. Always async, never blocking.",
+      "track": "Store last run timestamp in application SQLite log"
+    },
+    "forget": {
+      "target": "data_id UUID retrieved from application SQLite log",
+      "cascade": "Automatic — removes chunks, embeddings, and derived graph nodes/edges",
+      "bulk": "Query SQLite by node_set, iterate UUIDs",
+      "race_condition": "Never immediately re-ingest overlapping vectors after forget(). Batch and wait."
+    }
+  },
+
+  "mcp_tools": {
+    "recall_context": "Retrieve relevant memories for a query",
+    "get_project_summary": "Return current project state",
+    "add_decision": "Store a Tier 2 decision note",
+    "get_recent_changes": "Return timeline of changes over N days"
+  },
+
+  "implementation_phases": {
+    "order": [
+      "Phase 0 — Validate Foundation",
+      "Phase 1 — Project Foundation",
+      "Phase 2 — Observer Service",
+      "Phase 3 — Memory Pipeline",
+      "Phase 4 — Cognee Integration",
+      "Phase 5 — Memory Orchestrator",
+      "Phase 6 — MCP Server",
+      "Phase 7 — Decision Capture",
+      "Phase 8 — Dashboard",
+      "Phase 9 — Polish"
+    ],
+    "rules": [
+      "Complete and verify each phase before starting the next.",
+      "Never build phases in parallel.",
+      "MCP Server (Phase 6) must be completed before Dashboard (Phase 8).",
+      "Dashboard is last because it depends on a complete data layer."
+    ]
+  },
+
+  "out_of_scope": [
+    "IDE extensions",
+    "Team collaboration",
+    "Cloud synchronization",
+    "Visual graph exploration (pan/zoom/navigation)",
+    "Multi-project UI management",
+    "Authentication platform",
+    "Enterprise features",
+    "Mobile applications"
+  ],
+
+  "collaboration_guidelines": [
+    "Read CODEBASE_MEMORY.md before every session.",
+    "Confirm the active phase before writing any code.",
+    "Do not cross component boundaries defined in architecture_rules.",
+    "Do not introduce dependencies not listed in coding_preferences.",
+    "Do not use paid LLM APIs. Use gemini-1.5-flash only.",
+    "Do not make the Dashboard edit memory.",
+    "Do not store memory outside of Cognee.",
+    "Do not skip the Deduplicator in the Memory Pipeline.",
+    "Do not call remember() without self_improvement=False and node_set.",
+    "Do not call improve() automatically — explicit schedule only.",
+    "Do not re-rank recall() results — Cognee already ranks by importance_weight.",
+    "Do not query Cognee internal databases (.cognee_system/) directly.",
+    "Do not forget() and immediately re-ingest overlapping vectors.",
+    "Update CODEBASE_MEMORY.md when the phase changes."
+  ]
+}
