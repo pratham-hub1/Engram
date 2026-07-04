@@ -1,222 +1,144 @@
-# Memory AI
+# 🧠 Engram
 
-> A local-first AI memory layer that never lets project understanding disappear.
+> A local-first, self-healing Neural Knowledge Graph for your codebase.
 
 ---
 
-## The Problem
+## 🛑 The Problem
 
 Every time you start a new AI session, you explain your project from scratch.
-
 Every time you switch from Claude to Cursor to ChatGPT, context is lost.
-
 Every time you return after three weeks, the reasoning behind your decisions has vanished.
 
-AI tools remember conversations.
-
-They do not remember projects.
+AI tools remember conversations. **They do not remember projects.**
 
 ---
 
-## What This Is
+## ⚡ What is Engram?
 
-A background service that silently observes your project as you work — git commits, file changes, documentation updates, dependency changes — and builds a persistent, structured understanding of your project using Cognee.
+Engram is a background service that silently observes your project as you work — capturing git commits, file changes, documentation updates, and architectural shifts — and builds a persistent, 4-dimensional understanding of your project using **Cognee 1.2.2**.
 
 When you need context, it is already there.
-
-When you switch AI tools, they all share the same project memory.
-
-When you return after weeks away, your project remembers itself.
+When a new developer joins, they can instantly interrogate the project's history.
+**[Phase 2 Vision] Universal Memory:** We have laid the foundation for an MCP server so that any AI assistant (Claude, Cursor) can eventually share this exact same project memory.
 
 ---
 
-## How It Works
+## 🚀 How It Works (The Architecture)
 
+```text
+[ Developer Works ] ──> [ Background Observer (Watchdog) ]
+                               │
+                      [ Event Intelligence Pipeline ]
+                               │ (Filters noise, extracts topology)
+                 [ Decoupled NIM Gateway (Port 5001) ] 👈 (The API Fix)
+                               │
+                     [ Cognee Neural Graph ]
+                               │ (SQLite + LanceDB + KuzuDB)
+          ┌────────────────────┴────────────────────┐
+          │                                         │
+ [ Glassmorphism Dashboard ]               [ MCP Server (Alpha) ]
+ (The Multi-Hop Detective)          (AI Assistant Context Provider)
 ```
-You work normally
-      │
-Observer Service detects meaningful changes
-      │
-Memory Pipeline structures the knowledge
-      │
-Cognee stores and evolves the memory graph
-      │
-      ├── Dashboard       — you understand your project instantly
-      └── MCP Server      — any AI assistant understands it too
-```
 
-Two ways knowledge enters memory:
+**Two ways knowledge enters memory:**
 
-**Automatic (Tier 1)** — Git commits, file changes, documentation updates, dependency and config changes. No user action required.
-
-**Manual (Tier 2)** — Decisions that no machine can infer.
-
-```bash
-memory note "Chose JWT over Firebase because pricing scales poorly at volume."
-```
+1. **The Observer (Passive):** Instantly captures configuration changes, documentation updates, and Git Commits. Extracts structural relationships (e.g. `auth.js` imports `db.js`) without heavy AST parsers.
+2. **The Ledger (Active):** When the system detects a major architectural change without documentation, it sends a "Nudge". The developer can quickly log a human-readable decision that gets bound directly to the code nodes.
 
 ---
 
-## Key Features
+## 🌟 Hackathon Demo Showcase & Killer Features
 
-- **Passive observation** — works without changing how you develop
-- **Decision memory** — preserves the *why*, not just the *what*
-- **MCP server** — any MCP-compatible AI assistant gets project context automatically
-- **Recall interface** — ask your project questions in plain language
-- **Local-first** — your code never leaves your machine (except LLM API calls)
-- **Zero documentation burden** — memory builds from natural development activity
+- **The Multi-Hop Detective (Zero-Load Reasoning Trace):** An interactive UI that traverses the graph to answer complex architectural questions (e.g., *"Why did we switch to Vite, and what files were affected?"*). The frontend features a highly optimized "theater effect" staggered animation that parses the LLM's explicit `reasoning_path` output in real-time. This perfectly simulates SSE/WebSockets streaming visually, while enforcing exactly **zero added load** or latency on the backend architecture.
+- **Deterministic Graph Visualization (`/api/graph/summary`):** Rather than crashing the browser with a massive unstructured graph pull, Engram intelligently constructs a pruned, fast subgraph in `<0.1s`. It dynamically pulls the 30 most recent organic file modifications from the local SQLite `memories_log` and elegantly wires them directly into the core architectural system nodes for D3 to render.
+- **Self-Healing Indexing:** The backend utilizes a robust startup verification protocol against Cognee to ensure the Knowledge Graph is perfectly synced, preventing rate-limit flooding on reboot.
+- **Ticking Debt Detection:** The system actively monitors "ghost decisions" (code written without recorded intent) and nudges developers before knowledge is lost.
+- **Local-First & Fast:** Embeddings and Graph traversal run entirely local (LanceDB + KuzuDB) backed by the Nvidia AI API for reasoning extraction.
+- **Decoupled NIM Gateway (Resilient Architecture):** Built a standalone FastAPI sidecar to intercept, sanitize, and translate OpenAI-formatted payloads into strict NVIDIA NIM schemas in real-time. This prevents event-loop deadlocks and ensures lightning-fast graph ingestion without relying on fragile CLI proxies.
+- 🚧 **Universal AI Compatibility (Experimental):** Built the foundational MCP (Model Context Protocol) server. Currently undergoing stability testing for V2, which will allow any compatible AI tool to instantly read the project's mind.
 
 ---
 
-## Getting Started
+## 🛠️ Quick Start (Hackathon Demo Setup)
 
 ### Prerequisites
-
 - Python 3.11+
-- Node.js 18+ (for dashboard)
-- A Gemini API key (free tier)
+- Node.js 18+
+- Nvidia API Key
 
-### Installation
-
+### 1. Setup the Backend
 ```bash
-git clone https://github.com/your-username/memory-ai.git
-cd memory-ai
-```
+# Clone and install dependencies
+git clone https://github.com/your-username/engram.git
+cd engram
 
-```bash
+# Set your API Key
 cp .env.example .env
-# Add your GEMINI_API_KEY to .env
-```
+# Edit .env and add NVIDIA_API_KEY=your_key
 
-```bash
+# Install the package
 pip install -e .
 ```
 
-### Start the Service
+### 2. Start the Brain & Gateway (FastAPI + Cognee)
+Open two terminal tabs to ensure asynchronous stability:
 
+Terminal 1 (The NIM Gateway):
 ```bash
-# Register a project and start observing
-memory start --project /path/to/your/project
+uvicorn backend.gateway:app --host 127.0.0.1 --port 5001
 ```
 
-### Start the Dashboard
+Terminal 2 (The Main Brain):
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+*Note: On first boot, the system will automatically perform an initial backfill of your codebase. Subsequent boots are instant.*
 
+### 3. Start the Dashboard (React + Vite)
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+*The sleek Obsidian/Glassmorphism dashboard will be live at `http://localhost:5173`.*
 
-Dashboard runs at `http://localhost:5173`
-
-### Connect an AI Assistant via MCP
-
-Add the following to your AI assistant's MCP configuration:
+### 🚧 4. Connect an AI Assistant via MCP (Alpha / Testing Phase)
+> **Note:** The MCP integration is structurally built but currently undergoing active stability testing. Feel free to inspect the architecture, but the primary Hackathon demo focuses on the Core Dashboard.
 
 ```json
 {
   "mcpServers": {
-    "memory-ai": {
+    "engram": {
       "url": "http://localhost:8001/mcp"
     }
   }
 }
 ```
 
-Your AI assistant now has access to your project memory.
-
 ---
 
-## CLI Reference
-
-```bash
-# Record an architectural decision
-memory note "Reason for a technical choice"
-
-# Query project memory from the terminal
-memory recall "Why did we choose this approach?"
-
-# Check observer and memory status
-memory status
-
-# Run improve pass manually
-memory improve
-
-# Forget a specific memory
-memory forget "<memory-id>"
-```
-
----
-
-## MCP Tools
-
-When connected via MCP, AI assistants have access to:
-
-| Tool | Description |
-|---|---|
-| `recall_context` | Retrieve relevant project memories for a query |
-| `get_project_summary` | Get current project state and architecture |
-| `add_decision` | Store a decision note directly from the AI assistant |
-| `get_recent_changes` | Get a timeline of recent project changes |
-
----
-
-## Dashboard Views
+## 🧩 The Dashboard Views
 
 | View | Purpose |
 |---|---|
-| Project Overview | Current project state at a glance |
-| Ask Your Project | Plain-language recall interface |
-| Recent Decisions | Architectural decisions and their reasoning |
-| Architecture Evolution | How the project changed over time |
-| Current Focus | What is actively being worked on |
-| Memory Timeline | Chronological feed of all captured events |
-| Memory Summary Graph | Entity and relationship visualization |
-| Memory Health | Observer status and indexing metrics |
+| **Mission Control** | High-level architectural synthesis from the neural graph and Activity Ticker. |
+| **Ask Your Project** | The "Multi-Hop Detective" for interrogating the graph with live reasoning trace paths. |
+| **Neural Ledger** | Human-in-the-loop context backfilling and Neural Decisions Grid. |
+| **Evolution** | 4-Dimensional structural morphing over time and dynamic Architecture Graph rendering. |
+| **Memory Health** | Real-time extraction of active engineering trajectories and local database sizes. |
 
 ---
 
-## Documentation
+## 📜 Technology Stack
 
-| Document | Purpose |
-|---|---|
-| [`CODEBASE_MEMORY.md`](./CODEBASE_MEMORY.md) | AI assistant context — read this first |
-| [`PRODUCT_PRINCIPLES.md`](./PRODUCT_PRINCIPLES.md) | Non-negotiable product principles |
-| [`PRODUCT_SPEC.md`](./PRODUCT_SPEC.md) | Feature specification |
-| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | System design and component responsibilities |
-| [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) | Build phases and progress |
-
----
-
-## Technology
-
-| Layer | Technology |
-|---|---|
-| Backend | Python, FastAPI |
-| Memory | Cognee |
-| LLM | Gemini Free Tier |
-| File watching | watchdog |
-| Git | gitpython |
-| MCP | mcp Python SDK |
-| Frontend | React + Vite |
-| CLI | Typer |
+- **Backend:** Python, FastAPI, Watchdog
+- **Neural Graph:** Cognee 1.2.2 (KuzuDB + LanceDB + SQLite embedded)
+- **Intelligence:** Nvidia nemotron-3-super-120b-a12b and nv-embed-v1
+- **Frontend:** React, Vite, D3.js (Force Simulation), Lucide-React
+- **Aesthetic:** Custom CSS Glassmorphism + React Markdown
+- **Interoperability:** Model Context Protocol (MCP) Python SDK
 
 ---
 
-## What This Is Not
-
-- Not a chatbot
-- Not a documentation generator
-- Not a code editor
-- Not a note-taking app
-- Not a project management tool
-
-Memory is the product.
-
-Everything else is a surface for accessing it.
-
----
-
-## License
-
-MIT
+*Memory is the product. Everything else is a surface for accessing it.*
