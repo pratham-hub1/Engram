@@ -26,7 +26,7 @@ Code survives. The reasoning doesn't. That's the gap.
 
 ## See It Work
 
-> (ass<img width="670" height="552" alt="image" src="https://github.com/user-attachments/assets/b1230d63-cf12-456c-925a-39eeca3a2dee" />
+> <img width="670" height="552" alt="image" src="https://github.com/user-attachments/assets/b1230d63-cf12-456c-925a-39eeca3a2dee" />
 
 Engram doesn't guess. It walks the graph — decision → commit → docs → files — and shows you the path it took to get there.
 
