@@ -24,7 +24,7 @@
 
 ## Working Name
 
-(Project name will be decided later.)
+Engram
 
 ---
 
@@ -190,6 +190,7 @@ Example queries:
 
 The dashboard sends the query to the Memory Orchestrator,
 which calls `cognee.recall()` and renders the sourced result.
+The response includes a `reasoning_path` array, which the Dashboard renders with a zero-load staggered animation (theater effect) to simulate true multi-hop reasoning traces.
 
 ### MCP — AI Assistant Access
 
@@ -257,11 +258,10 @@ Not predictive. Reflects recent development activity only.
 **Memory Timeline**
 Chronological feed of all captured project events.
 
-**Memory Summary Graph**
-A lightweight visualization of major project entities and their relationships
-around the currently selected context.
-Helps users understand how project concepts connect.
-Read-only. Not interactive for exploration.
+**Memory Summary Graph (Hackathon Demo)**
+A lightweight, non-interactive D3 force-directed visualization of major project entities and their relationships.
+Deterministically powered by the new `/api/graph/summary` endpoint to guarantee <0.1s render times.
+Helps users understand how project concepts connect visually. Read-only. Not interactive for exploration.
 
 **Memory Health**
 Operational health indicator for the memory system.

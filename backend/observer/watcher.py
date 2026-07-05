@@ -11,7 +11,7 @@ from backend.observer.queue import event_queue, RawEvent
 
 logger = structlog.get_logger(__name__)
 
-class MemoryAIEventHandler(FileSystemEventHandler):
+class EngramEventHandler(FileSystemEventHandler):
     """
     Handles raw file system events, filters them, and pushes them to the queue.
     """
@@ -22,7 +22,11 @@ class MemoryAIEventHandler(FileSystemEventHandler):
             # We'll allow it if it passes is_ignored.
             pass
             
-        path = event.src_path
+        # Guarantee mathematically pure, machine-agnostic relative paths
+        try:
+            path = os.path.relpath(event.src_path, start=".")
+        except ValueError:
+            path = event.src_path
         
         # Git Commit detection (Special Case)
         # We explicitly check for .git/logs/HEAD modifications
@@ -69,7 +73,7 @@ class ObserverService:
     def __init__(self, watch_dir: str = "."):
         self.watch_dir = watch_dir
         self.observer = Observer()
-        self.handler = MemoryAIEventHandler()
+        self.handler = EngramEventHandler()
         
     def start(self):
         """Starts the watchdog observer and the debouncer queue."""

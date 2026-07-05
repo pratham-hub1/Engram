@@ -14,7 +14,7 @@ class RawEvent:
     metadata: Dict[str, Any] = None
 
 class ObserverQueue:
-    def __init__(self, debounce_seconds: int = 30):
+    def __init__(self, debounce_seconds: int = 1):
         self.queue = asyncio.Queue()
         self.debounce_seconds = debounce_seconds
         
@@ -45,7 +45,7 @@ class ObserverQueue:
             self.queue.put_nowait(event)
         else:
             # File system events are debounced based on the path
-            logger.debug("Debouncing file event", path=event.path, event_type=event.event_type)
+            logger.info("Debouncing file event", path=event.path, event_type=event.event_type)
             self._pending_file_events[event.path] = event
             
     async def _debounce_loop(self):

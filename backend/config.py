@@ -7,23 +7,25 @@ class Settings(BaseSettings):
     environment: str = "development"
     log_level: str = "INFO"
 
-    # Litellm settings
-    litellm_tokenizer: str = "cl100k_base"
-
     # Cognee Dataset
-    cognee_dataset_name: str = "memory_ai_core"
-
-    # LLM settings
+    cognee_dataset_name: str = "engram_core"
+    
+    # Cognee Proxy Configuration
     cognee_llm_provider: str = "openai"
-    cognee_llm_model: str = "nvidia/nemotron-3-super-120b-a12b"
-    cognee_llm_endpoint: str = "https://integrate.api.nvidia.com/v1"
-    cognee_llm_api_key: str = ""
+    cognee_llm_model: str = "gpt-4o"
+    cognee_llm_endpoint: str = "http://localhost:4000"
+    cognee_llm_api_key: str = "sk-proxy-key" # Dummy key for proxy
 
-    # Embedding settings
-    cognee_embedding_provider: str = "openai"
-    cognee_embedding_model: str = "nvidia/nv-embedqa-e5-v5"
-    cognee_embedding_endpoint: str = "https://integrate.api.nvidia.com/v1"
-    cognee_embedding_api_key: str = ""
+    cognee_embedding_provider: str = "openai_compatible"
+    cognee_embedding_model: str = "text-embedding-3-large"
+    cognee_embedding_endpoint: str = "http://localhost:4000"
+    cognee_embedding_api_key: str = "sk-proxy-key"
+
+    # App LLM settings (Used strictly for local extract_reasoning, NOT for Cognee Graph)
+    app_llm_provider: str = "openai"
+    app_llm_model: str = "nvidia/nemotron-3-super-120b-a12b"
+    app_llm_endpoint: str = "https://integrate.api.nvidia.com/v1"
+    app_llm_api_key: str = ""
 
     # Pydantic configuration
     model_config = SettingsConfigDict(
@@ -34,7 +36,7 @@ class Settings(BaseSettings):
 
     def set_environment(self):
         """Inject required settings directly into the OS environment."""
-        os.environ["LITELLM_TOKENIZER"] = self.litellm_tokenizer
+        pass
 
 # Singleton instance
 settings = Settings()

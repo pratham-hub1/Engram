@@ -1,0 +1,509 @@
+
+--- OUTGOING to chat/completions ---
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You analyze one user message inside an ongoing Q&A session.\n\nReturn structured JSON for three independent signals:\n\n1. A question or request to answer now.\n2. Durable guidance for future answers in this session.\n3. Whether previously served session guidance clearly helped or hurt.\n\nA message can contain none, one, or several of these.\nThe structured output schema is provided separately. Follow that schema exactly and do not add extra fields.\n\n## 1. Query to answer\n\nSet query_to_answer only when the message includes a distinct question or request that should be answered now.\n\nThis includes ordinary questions, ordinary requests, and requests embedded inside feedback or correction messages.\n\nWhen present, query_to_answer should contain only the part that should be answered next.\n\nOtherwise set query_to_answer to null.\n\nIf query_to_answer is null and the message is feedback-only, correction-only, or acknowledgement-only, response_to_user may be a brief acknowledgement with no follow-up question.\n\nOtherwise set response_to_user to null.\n\n## 2. Candidate session-context updates\n\nExtract up to 3 candidate updates that would improve future answers in this session. A candidate update is durable guidance: it should still be useful after the current turn.\n\nAssign each candidate update to exactly one section:\n\n- goals: The user's broader objective or desired outcome. Include implied goals when the message makes the intended result clear.\n- rules: Substantive instructions future answers must follow. Use this for requirements about what to assume, prioritize, include, exclude, verify, use, avoid, or optimize for.\n- preferences: Presentation guidance for future answers. Use this for tone, length, format, structure, ordering, examples, wording, or level of detail.\n- lessons_learned: Durable knowledge from the message. Use this for corrections, facts, changed assumptions, causes, failures, successes, or context that future answers should reason from.\n\nWhen deciding which section to use:\n\n- goals vs rules: Choose goals for the target outcome; choose rules for constraints on how future answers should pursue that outcome. Create two candidates only when both are independently reusable.\n- goals vs preferences: Choose goals for what the user wants to accomplish; choose preferences for how the answer should be packaged. Create two candidates only when both would guide later turns.\n- rules vs preferences: Choose rules when the guidance changes content, assumptions, sources, verification, or decision logic; choose preferences when it only changes expression, structure, tone, or detail level.\n- rules vs lessons_learned: Choose rules for required future behavior; choose lessons_learned for the correction, reason, or fact that should inform future reasoning. Create two candidates only when both would be useful later.\n- preferences vs lessons_learned: Choose preferences for requested presentation style; choose lessons_learned for durable context about what worked, failed, changed, or matters.\n\nCandidate limits and format:\n\n- Return at most 3 candidate updates, each with section, content, and confidence.\n- section must be one of goals, rules, preferences, or lessons_learned.\n- content must be one short reusable sentence written as guidance for future turns.\n- confidence must be a number from 0 to 1; include only candidates with confidence >= 0.75.\n- Prefer a goal when the broader objective is reasonably clear, and prefer 2-3 candidates when the message contains multiple durable signals; omit weak, redundant, generic, vague, one-off, or low-value details.\n\n## 3. Served context ratings\n\nThe input may include served session-context entries used for the previous answer.\n\nRate an entry only when the current user message makes its impact clear:\n- helpful: it clearly helped produce a good answer.\n- harmful: it clearly caused or contributed to a bad answer.\n\nDo not guess. If unclear, omit the rating.\n\nReturn at most 3 ratings.\nIf none are clear, return an empty list.\n"
+    },
+    {
+      "role": "user",
+      "content": "CURRENT USER MESSAGE:\nWhy Cognee?\n\nPREVIOUS QUESTION:\nWhy does this project exists?\n\nPREVIOUS ANSWER:\n{\n  \"answer\": \"The Engram project exists to eliminate the continuity problem where developers lose project understanding long before they lose code, each AI session starts from zero context, AI tools have isolated context, important architectural decisions fade over time, and developers repeatedly explain the same project to different AI assistants. It provides a local-first AI memory layer that continuously understands and preserves project knowledge using Cognee and makes it instantly available to developers and AI assistants.\",\n  \"reasoning_path\": [\n    {\n      \"type\": \"document\",\n      \"name\": \"This chunk details the product specification for... [developers, ai, project]\"\n    },\n    {\n      \"type\": \"document\",\n      \"name\": \"[FILE_MODIFIED - STRUCTURAL] Project File: PRODUCT_SPEC.md\"\n    },\n    {\n      \"type\": \"document\",\n      \"name\": \"engram\"\n    }\n  ]\n}\n\nSESSION CONTEXT ENTRIES SERVED TO THE PREVIOUS ANSWER (id: content):\n180e3121-2218-4329-b6b4-a24207532c55: When providing project history, include the timeline of recent events and phases.\n1fcc74e7-d3c5-4fb7-aa96-aa2cf1f6aefd: When answering about project history, include the timeline of recent events and phases.\n85512bc6-ab0f-4173-b546-a29cdc39aacc: When asked about architectural decisions, provide the most recent decisions made in the project.\nf9bbb900-5f42-40da-a426-49ae1a7c1d56: When explaining architectural decisions, include the motivation or justification for each choice.\n0c4c157a-2bb7-47c6-b9d3-e5a3577b8752: Understand recent project history and timeline.\ndf985a6f-d460-4e5b-827a-50d80e268534: User wants to know the recent project history and timeline.\n79197623-58dd-41c8-bbb1-61fce7da64a6: User wants to know the recent project history and timeline of the project.\n978be04c-09f7-464d-9630-96e8d5e50e96: User wants to know the recent architectural decisions made in the project.\na3f65122-265d-4e64-956a-9b8fe18ed1fd: User wants recent architectural decisions.\ncca4e89e-1abb-4070-aef3-74ac774fbe98: Understand the recent project history and timeline.\n5aecac0b-fb9e-43d4-80a9-003a9cba124c: Provide recent project history and timeline.\n47a02d02-413b-471b-8865-08548b39d84f: Present project history using bullet points for clarity and brevity.\nb3ed555a-c595-420f-b8a8-8728d32cacfd: Present the architectural decisions as a concise bullet\u2011point list with brief descriptions.\ne195c284-c48b-4a09-a027-945552389ab8: Structure the answer with three clearly labeled sections: Architecture Overview, Recent Decisions, and Current Focus, using bullet points for clarity.\ndabe8004-23a3-45f7-b3fe-32ef88869683: Use bullet points for clarity and brevity in presenting architectural analysis."
+    }
+  ],
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "tool_choice": {
+    "type": "function",
+    "function": {
+      "name": "SessionTurnAnalysis"
+    }
+  },
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "SessionTurnAnalysis",
+        "description": "Result of analyzing a user message for answer routing and durable guidance.",
+        "parameters": {
+          "$defs": {
+            "CandidateGoalUpdate": {
+              "description": "Candidate update for the user's broader session objective.",
+              "properties": {
+                "section": {
+                  "const": "goals",
+                  "default": "goals",
+                  "description": "Fixed section value for goal updates.",
+                  "title": "Section",
+                  "type": "string"
+                },
+                "content": {
+                  "description": "The user's broader objective or desired outcome for the session. Use this for where the user is trying to get to, not constraints, facts, or answer format.",
+                  "title": "Content",
+                  "type": "string"
+                },
+                "confidence": {
+                  "default": 0.0,
+                  "description": "Confidence from 0 to 1. Only candidates with confidence >= 0.75 are stored.",
+                  "title": "Confidence",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "content"
+              ],
+              "title": "CandidateGoalUpdate",
+              "type": "object"
+            },
+            "CandidateLessonLearnedUpdate": {
+              "description": "Candidate update for session knowledge future answers should reason from.",
+              "properties": {
+                "section": {
+                  "const": "lessons_learned",
+                  "default": "lessons_learned",
+                  "description": "Fixed section value for lesson updates.",
+                  "title": "Section",
+                  "type": "string"
+                },
+                "content": {
+                  "description": "Durable knowledge future answers should reason from: a correction, clarification, discovered fact, cause, outcome, or prior assumption update. It may overlap with a rule when it captures reusable context behind that rule, but it must not be only a direct instruction or required action.",
+                  "title": "Content",
+                  "type": "string"
+                },
+                "confidence": {
+                  "default": 0.0,
+                  "description": "Confidence from 0 to 1. Only candidates with confidence >= 0.75 are stored.",
+                  "title": "Confidence",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "content"
+              ],
+              "title": "CandidateLessonLearnedUpdate",
+              "type": "object"
+            },
+            "CandidatePreferenceUpdate": {
+              "description": "Candidate update for presentation and communication preferences.",
+              "properties": {
+                "section": {
+                  "const": "preferences",
+                  "default": "preferences",
+                  "description": "Fixed section value for preference updates.",
+                  "title": "Section",
+                  "type": "string"
+                },
+                "content": {
+                  "description": "Presentation guidance only: style, tone, format, length, structure, terminology, examples, ordering, or level of detail. Use preferences only when the substantive answer would stay the same.",
+                  "title": "Content",
+                  "type": "string"
+                },
+                "confidence": {
+                  "default": 0.0,
+                  "description": "Confidence from 0 to 1. Only candidates with confidence >= 0.75 are stored.",
+                  "title": "Confidence",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "content"
+              ],
+              "title": "CandidatePreferenceUpdate",
+              "type": "object"
+            },
+            "CandidateRuleUpdate": {
+              "description": "Candidate update for substantive instructions future answers must follow.",
+              "properties": {
+                "section": {
+                  "const": "rules",
+                  "default": "rules",
+                  "description": "Fixed section value for rule updates.",
+                  "title": "Section",
+                  "type": "string"
+                },
+                "content": {
+                  "description": "An instruction future answers must obey: a constraint, requirement, assumption, source boundary, decision criterion, technical choice, or thing to avoid. Use rules for statements that change answer substance, even if phrased as facts.",
+                  "title": "Content",
+                  "type": "string"
+                },
+                "confidence": {
+                  "default": 0.0,
+                  "description": "Confidence from 0 to 1. Only candidates with confidence >= 0.75 are stored.",
+                  "title": "Confidence",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "content"
+              ],
+              "title": "CandidateRuleUpdate",
+              "type": "object"
+            },
+            "ServedContextRating": {
+              "description": "A single rating of a session-context entry that was served to the previous answer.",
+              "properties": {
+                "entry_id": {
+                  "title": "Entry Id",
+                  "type": "string"
+                },
+                "rating": {
+                  "title": "Rating",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "entry_id",
+                "rating"
+              ],
+              "title": "ServedContextRating",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "response_to_user": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Brief acknowledgement when no answer should be generated.",
+              "title": "Response To User"
+            },
+            "query_to_answer": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "The question/request to answer now, or null when there is none.",
+              "title": "Query To Answer"
+            },
+            "served_context_ratings": {
+              "description": "Up to 3 ratings of session-context entries served to the previous answer.",
+              "items": {
+                "$ref": "#/$defs/ServedContextRating"
+              },
+              "title": "Served Context Ratings",
+              "type": "array"
+            },
+            "candidate_context_updates": {
+              "description": "Up to 3 proposed session-context updates. Each item must be one of the section-specific candidate update types.",
+              "items": {
+                "discriminator": {
+                  "mapping": {
+                    "goals": "#/$defs/CandidateGoalUpdate",
+                    "lessons_learned": "#/$defs/CandidateLessonLearnedUpdate",
+                    "preferences": "#/$defs/CandidatePreferenceUpdate",
+                    "rules": "#/$defs/CandidateRuleUpdate"
+                  },
+                  "propertyName": "section"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/CandidateGoalUpdate"
+                  },
+                  {
+                    "$ref": "#/$defs/CandidateRuleUpdate"
+                  },
+                  {
+                    "$ref": "#/$defs/CandidatePreferenceUpdate"
+                  },
+                  {
+                    "$ref": "#/$defs/CandidateLessonLearnedUpdate"
+                  }
+                ]
+              },
+              "title": "Candidate Context Updates",
+              "type": "array"
+            }
+          },
+          "type": "object",
+          "required": [
+            "candidate_context_updates",
+            "served_context_ratings"
+          ]
+        }
+      }
+    }
+  ]
+}
+
+--- OUTGOING to embeddings ---
+{
+  "input": [
+    "Why Cognee?"
+  ],
+  "model": "nvidia/nv-embed-v1",
+  "input_type": "query"
+}
+
+--- OUTGOING to embeddings ---
+{
+  "input": [
+    "Why Cognee?"
+  ],
+  "model": "nvidia/nv-embed-v1",
+  "input_type": "query"
+}
+
+--- OUTGOING to chat/completions ---
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "## Active session guidance\nItems are listed oldest to newest within each section. When guidance conflicts, prefer the later item.\n### Goals\n- [09:03:23] User wants to know the recent project history and timeline.\n- [09:03:50] User wants to know the recent project history and timeline of the project.\n- [09:07:04] Understand recent project history and timeline.\n- [09:43:54] User wants to know the recent architectural decisions made in the project.\n- [10:49:34] User wants recent architectural decisions.\n- [12:20:50] Provide recent project history and timeline.\n- [14:01:46] Understand the recent project history and timeline.\n### Rules\n- [09:43:54] When asked about architectural decisions, provide the most recent decisions made in the project.\n- [09:47:26] When explaining architectural decisions, include the motivation or justification for each choice.\n- [10:11:31] When providing project history, include the timeline of recent events and phases.\n- [10:25:43] When answering about project history, include the timeline of recent events and phases.\n### Preferences\n- [09:43:54] Present the architectural decisions as a concise bullet\u2011point list with brief descriptions.\n- [09:58:14] Structure the answer with three clearly labeled sections: Architecture Overview, Recent Decisions, and Current Focus, using bullet points for clarity.\n- [10:23:20] Use bullet points for clarity and brevity in presenting architectural analysis.\n- [10:41:47] Present project history using bullet points for clarity and brevity.\n\nPrevious conversation:\n\n[2026-07-04T16:18:23.026665]\nQUESTION: How does the file observer talks to the memory layer?\nANSWER: {\n  \"answer\": \"The file observer does not communicate directly with the memory layer. It observes events and ingests them as Tier\u202f1 notes into the memory pipeline. The memory pipeline then processes and stores the structured knowledge in the Cognee memory layer via cognee.remember().\",\n  \"reasoning_path\": [\n    {\n      \"type\": \"component\",\n      \"name\": \"observer\"\n    },\n    {\n      \"type\": \"component\",\n      \"name\": \"memorypipeline\"\n    },\n    {\n      \"type\": \"component\",\n      \"name\": \"cognee memory layer\"\n    }\n  ]\n}\n\n[2026-07-04T16:47:39.956561]\nQUESTION: Provide a high-level summary of the architecture\nANSWER: {\n  \"answer\": \"The system is a local-first background memory service that continuously builds and maintains a project's knowledge graph. Its high-level data flow is: Developer actions \u2192 Observer Service (passively detects events, never interprets) \u2192 Event Intelligence (filters out noise such as build folders, caches) \u2192 Memory Pipeline (normalizes events, deduplicates, optionally extracts reasoning via an LLM Provider, then stores structured knowledge via cognee.remember()) \u2192 Cognee Memory Layer (the source of truth, storing knowledge graph, vector embeddings, and metadata in embedded SQLite, LanceDB, and KuzuDB) \u2192 Memory Orchestrator (constructs retrieval requests, calls cognee.recall(), returns normalized output) \u2192 Dashboard (human-facing visualizations) and MCP Server (AI\u2011assistant interface). Key architectural rules enforce a strict separation of concerns: the Observer never interprets, Event Intelligence never stores, the Memory Pipeline never answers questions, Cognee owns all memory, the Orchestrator only orchestrates retrieval, the Dashboard only visualizes, and the MCP Server only exposes memory to external AI tools. Additional guidelines include a unified dataset per project, manual decision notes that bypass the Observer, scheduled improvement cycles, and deterministic graph visualizations that avoid heavyweight exports.\",\n  \"reasoning_path\": [\n    {\n      \"type\": \"document\",\n      \"name\": \"This chunk is about: - Projects: engraph (Cognee) system - Products: Cognee - Companies: Nvidia - Roles: Developer, Architecture Owner - Concepts: Local-first, Source of Truth, Reasoning Extraction - Components: Observer Service, Event Intelligence, Memory Pipeline, LLM Provider, Cognee Memory, Memory Orchestrator, Dashboard, MCP Server - Events: Git commits, file modifications\"\n    },\n    {\n      \"type\": \"document\",\n      \"name\": \"ARCHITECTURE.md\"\n    }\n  ]\n}\n\n[2026-07-04T17:02:13.200960]\nQUESTION: What are the recent architectural decisions?\nANSWER: [{\"decision\":\"Built a standalone FastAPI sidecar (Decoupled NIM Gateway) to intercept, sanitize, and translate OpenAI-formatted payloads into strict NVIDIA NIM schemas in real-time.\",\"reason\":\"Prevents event-loop deadlocks and ensures lightning-fast graph ingestion without relying on fragile CLI proxies.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: README.md Status:... [graph, ai, project]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Built the foundational MCP (Model Context Protocol) server for universal AI compatibility.\",\"reason\":\"To allow any compatible AI tool to instantly read the project\u2019s mind.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: README.md Status:... [graph, ai, project]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Created Multi-Hop Detective UI component that traverses the knowledge graph to answer complex architectural questions with live reasoning trace paths.\",\"reason\":\"To provide zero-load reasoning trace visualization, answering complex graph questions without added backend load or latency.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: README.md Status:... [graph, ai, project]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Implemented deterministic graph visualization API (/api/graph/summary) that returns a pruned, fast subgraph in <0.1s.\",\"reason\":\"To avoid crashing the browser with massive unstructured graph pull and achieve rapid rendering.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: README.md Status:... [graph, ai, project]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Implemented self-healing indexing via a robust startup verification protocol against Cognee.\",\"reason\":\"To ensure the Knowledge Graph is perfectly synced and prevent rate-limit flooding on reboot.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: README.md Status:... [graph, ai, project]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Implemented ticking debt detection to monitor 'ghost decisions' (code written without recorded intent).\",\"reason\":\"To nudge developers before knowledge is lost.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: README.md Status:... [graph, ai, project]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Designed the system to be local-first, using LanceDB + KuzuDB for embeddings and graph traversal, backed by Nvidia AI API for reasoning extraction.\",\"reason\":\"To run embeddings and graph traversal entirely local, ensuring fast and private operation.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: README.md Status:... [graph, ai, project]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Enforced the Unified Dataset Rule: every project uses exactly ONE unified dataset to ensure a connected knowledge graph.\",\"reason\":\"To prevent the Knowledge Graph from fracturing across multiple Cognee namespaces.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Established a two-tier capture system: Tier 1 automatic observation, Tier 2 manual decision notes only.\",\"reason\":\"To separate automatic observation from manual decision capture.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Designed the Observer to be passive; it never interprets events.\",\"reason\":\"To keep observation pure and avoid inference.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"}]\n\n[2026-07-04T17:11:17.172738]\nQUESTION: What are the recent architectural decisions?\nANSWER: [\n  {\n    \"decision\": \"Manual notes are normalized directly as MANUAL_NOTE events, bypassing the file observer.\",\n    \"reason\": \"to ensure accurate decision capture\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Nudge suppression checks globally across all paths for recent manual decisions.\",\n    \"reason\": \"offering a better developer experience (i.e. \\\"I already explained my reasoning today\\\")\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Memory Pipeline stages: Normalizer \u2192 Deduplicator \u2192 two paths (reasoning to extract \u2192 LLM Interpretation \u2192 cognee.remember() node_set=decisions; structural change only \u2192 cognee.remember() directly).\",\n    \"reason\": \"to separate reasoning extraction from structural changes and prevent redundant remember() calls\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Deduplicator prevents redundant remember() calls using content hashing + SQLite log.\",\n    \"reason\": \"to prevent stale state accumulation in the graph\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Initial indexing runs on first project registration: backfills last 50 commits and existing docs/deps.\",\n    \"reason\": \"to quickly build the knowledge graph from existing project history\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Unified Dataset Rule: Every project uses exactly ONE unified dataset to ensure a connected knowledge graph.\",\n    \"reason\": \"to prevent the Knowledge Graph from fracturing across multiple Cognee namespaces\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Every remember() call's data_id UUID must be stored in SQLite log immediately.\",\n    \"reason\": \"required for forget() capability\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"improve() runs globally on the unified dataset, triggered explicitly only: once after initial indexing + every 60 min. Never automatic.\",\n    \"reason\": \"heavy operation (minutes, not milliseconds); always run as async background task\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Dashboard is read-only; it never edits memory.\",\n    \"reason\": \"it only visualizes memory\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Memory Orchestrator owns query construction and output formatting; Cognee owns retrieval and ranking.\",\n    \"reason\": \"to maintain separation of concerns; orchestrator does not re-rank results\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"MCP Server is the universal AI interface; no per-tool integrations.\",\n    \"reason\": \"any MCP-compatible AI assistant connects to the same project memory\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Local-first design using LanceDB + KuzuDB for embeddings and graph traversal, backed by Nvidia AI API for reasoning extraction.\",\n    \"reason\": \"to run embeddings and graph traversal entirely local, ensuring fast and private operation\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  }\n]\n\n[2026-07-04T17:14:13.738691]\nQUESTION: What are the recent architectural decisions?\nANSWER: [{\"decision\":\"Manual notes are normalized directly as MANUAL_NOTE events, bypassing the file observer.\",\"reason\":\"to ensure accurate decision capture\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Nudge suppression checks globally across all paths for recent manual decisions.\",\"reason\":\"offering a better developer experience (i.e. \\\"I already explained my reasoning today\\\")\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Memory Pipeline stages: Normalizer \u2192 Deduplicator \u2192 two paths (reasoning to extract \u2192 LLM Interpretation \u2192 cognee.remember() node_set=decisions; structural change only \u2192 cognee.remember() directly).\",\"reason\":\"to separate reasoning extraction from structural changes and prevent redundant remember() calls\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Deduplicator prevents redundant remember() calls using content hashing + SQLite log.\",\"reason\":\"to prevent stale state accumulation in the graph\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Initial indexing runs on first project registration: backfills last 50 commits and existing docs/deps.\",\"reason\":\"to quickly build the knowledge graph from existing project history\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Unified Dataset Rule: every project uses exactly ONE unified dataset to ensure a connected knowledge graph.\",\"reason\":\"to prevent the Knowledge Graph from fracturing across multiple Cognee namespaces\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Every remember() call's data_id UUID must be stored in SQLite log immediately.\",\"reason\":\"required for forget() capability\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"improve() runs globally on the unified dataset, triggered explicitly only: once after initial indexing + every 60 min; never automatic.\",\"reason\":\"heavy operation (minutes, not milliseconds); always run as async background task\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Memory Orchestrator owns query construction and output formatting; Cognee owns retrieval and ranking.\",\"reason\":\"to maintain separation of concerns; orchestrator does not re-rank results\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Dashboard is read-only; it never edits memory.\",\"reason\":\"separation of concerns; dashboard only visualizes memory\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"MCP Server is the universal AI interface; no per-tool integrations.\",\"reason\":\"any MCP-compatible AI assistant connects to the same project memory\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Local-first design using LanceDB + KuzuDB for embeddings and graph traversal, backed by Nvidia AI API for reasoning extraction.\",\"reason\":\"to run embeddings and graph traversal entirely local, ensuring fast and private operation\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Added the /api/graph/summary deterministic subgraph endpoint.\",\"reason\":\"to guarantee <0.1s render times for the Memory Summary Graph and avoid browser lockups\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Implemented the staggered Zero-Load Reasoning Trace animation in the frontend.\",\"reason\":\"to showcase multi-hop reasoning without backend SSE load\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"}]\n\n[2026-07-04T17:45:07.430306]\nQUESTION: What problem does this project solve?\nANSWER: {\n  \"answer\": \"The project solves the continuity problem where developers lose project understanding long before they lose code, every AI session starts from zero context, AI tools have isolated context, important architectural decisions disappear over time, and developers repeatedly explain the same project to different AI assistants.\",\n  \"reasoning_path\": [\n    {\n      \"type\": \"document\",\n      \"name\": \"This chunk details the product specification for... [developers, ai, project]\"\n    },\n    {\n      \"type\": \"document\",\n      \"name\": \"[FILE_MODIFIED - STRUCTURAL] Project File: PRODUCT_SPEC.md\"\n    }\n  ]\n}\n\n[2026-07-04T17:47:50.382886]\nQUESTION: What are the recent architectural decisions?\nANSWER: [{\"decision\":\"Cognee is the source of truth. Nothing else owns memory.\",\"reason\":\"To ensure a single authoritative store for project knowledge.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Two-tier capture: Tier 1 automatic observation, Tier 2 manual decision notes only.\",\"reason\":\"To separate automatic observation from manual decision capture.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Observer is passive. It never interprets.\",\"reason\":\"To keep observation pure and avoid inference.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Manual notes bypass the Observer entirely. They enter at the Memory Pipeline.\",\"reason\":\"To ensure accurate decision capture.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Memory Pipeline stages: Normalizer \u2192 Deduplicator \u2192 two paths: Reasoning to extract \u2192 LLM Interpretation \u2192 cognee.remember() node_set=decisions; Structural change only \u2192 cognee.remember() directly, no LLM, correct node_set.\",\"reason\":\"To separate reasoning extraction from structural changes and prevent redundant remember() calls.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Deduplicator prevents redundant remember() calls using content hashing + SQLite log.\",\"reason\":\"To prevent stale state accumulation in the graph.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Initial indexing runs on first project registration: backfills last 50 commits and existing docs/deps.\",\"reason\":\"To quickly build the knowledge graph from existing project history.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Unified Dataset Rule: Every project uses exactly ONE unified dataset to ensure a connected knowledge graph.\",\"reason\":\"To prevent the Knowledge Graph from fracturing across multiple Cognee namespaces.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Every remember() call's data_id UUID must be stored in SQLite log immediately.\",\"reason\":\"Required for forget() capability.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"improve() runs globally on the unified dataset. Triggered explicitly only: once after initial indexing + every 60 min. Never automatic.\",\"reason\":\"Heavy operation (minutes, not milliseconds); always run as async background task.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"MCP Server is the universal AI interface. No per-tool integrations.\",\"reason\":\"Any MCP-compatible AI assistant connects to the same project memory.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Dashboard is read-only. It never edits memory.\",\"reason\":\"To maintain separation of concerns; dashboard only visualizes memory.\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"}]\n\n[2026-07-05T09:16:47.046561]\nQUESTION: What are the recent architectural decisions?\nANSWER: [\n  {\n    \"decision\": \"Manual notes are normalized directly as `MANUAL_NOTE` events, bypassing the file observer.\",\n    \"reason\": \"to ensure accurate decision capture\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Nudge suppression checks globally across all paths for recent manual decisions.\",\n    \"reason\": \"offering a better developer experience (i.e. \\\"I already explained my reasoning today\\\")\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Memory Pipeline stages: Normalizer \u2192 Deduplicator \u2192 two paths (reasoning to extract \u2192 LLM Interpretation \u2192 cognee.remember() node_set=decisions; structural change only \u2192 cognee.remember() directly).\",\n    \"reason\": \"to separate reasoning extraction from structural changes and prevent redundant remember() calls\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Deduplicator prevents redundant remember() calls using content hashing + SQLite log.\",\n    \"reason\": \"to prevent stale state accumulation in the graph\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Initial indexing runs on first project registration: backfills last 50 commits and existing docs/deps.\",\n    \"reason\": \"to quickly build the knowledge graph from existing project history\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Pure Vanilla CSS used to maintain ultimate control over the glassmorphism and glow effects.\",\n    \"reason\": \"to maintain ultimate control over the glassmorphism and glow effects\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"d3-force physics simulation is used to provide the \\\"Crazy Cognee\\\" vibe for the graph without interactive dependencies. The graph relies on `/api/graph/summary`, which deterministically builds a fast subgraph from the SQLite `memories_log` (last 30 organic modifications) to completely avoid browser lockups and heavy backend load.\",\n    \"reason\": \"to avoid browser lockups and heavy backend load\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Zero technical debt approach to AST parsing: used standard regex string formatting (`File A imports File B`) to naturally teach Cognee the edges without external parsers.\",\n    \"reason\": \"to avoid external parsers and technical debt\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  },\n  {\n    \"decision\": \"Theater Effect over SSE: To showcase multi-hop reasoning without rewriting the backend to support SSE streaming, the backend `AskYourProject` endpoint returns an explicit `reasoning_path` array. The frontend (`AskYourProject.jsx`) staggers the visual rendering of these nodes artificially to create a real-time \\\"thinking\\\" animation with exactly zero backend processing cost.\",\n    \"reason\": \"to showcase multi-hop reasoning without backend SSE load\",\n    \"source\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\n    \"confidence\": \"Confirmed\"\n  }\n]\n\n[2026-07-05T10:18:27.360170]\nQUESTION: Why did we built a sidecar gateway instead of calling the LLM directly\nANSWER: {\n  \"answer\": \"The sidecar gateway was built to decouple LLM calls from the main event loop, preventing deadlocks and ensuring fast, reliable graph ingestion. It acts as a local proxy that translates OpenAI\u2011formatted payloads into the strict NVIDIA NIM schema, avoids fragile CLI wrappers, keeps external LLM processing isolated (honoring the zero\u2011cost and local\u2011first constraints), and provides a central point for retries, quota sharing, and schema validation without blocking core services.\",\n  \"reasoning_path\": [\n    {\n      \"type\": \"document\",\n      \"name\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md\"\n    },\n    {\n      \"type\": \"component\",\n      \"name\": \"[FILE_MODIFIED - STRUCTURAL] Project File: backend/gateway.py\"\n    },\n    {\n      \"type\": \"dependency\",\n      \"name\": \"litellm\"\n    },\n    {\n      \"type\": \"policy\",\n      \"name\": \"external_calls_llm\"\n    },\n    {\n      \"type\": \"policy\",\n      \"name\": \"zero_cost\"\n    },\n    {\n      \"type\": \"concept\",\n      \"name\": \"local_first\"\n    }\n  ]\n}\n\n[2026-07-05T10:29:09.870543]\nQUESTION: What are the recent architectural decisions?\nANSWER: [{\"decision\":\"Manual notes are normalized directly as MANUAL_NOTE events, bypassing the file observer.\",\"reason\":\"to ensure accurate decision capture\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Nudge suppression checks globally across all paths for recent manual decisions.\",\"reason\":\"offering a better developer experience (i.e. \\\"I already explained my reasoning today\\\")\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Memory Pipeline stages: Normalizer \u2192 Deduplicator \u2192 two paths (reasoning to extract \u2192 LLM Interpretation \u2192 cognee.remember() node_set=decisions; structural change only \u2192 cognee.remember() directly).\",\"reason\":\"to separate reasoning extraction from structural changes and prevent redundant remember() calls\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Deduplicator prevents redundant remember() calls using content hashing + SQLite log.\",\"reason\":\"to prevent stale state accumulation in the graph\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Initial indexing runs on first project registration: backfills last 50 commits and existing docs/deps.\",\"reason\":\"to quickly build the knowledge graph from existing project history\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Pure Vanilla CSS used to maintain ultimate control over the glassmorphism and glow effects.\",\"reason\":\"to maintain ultimate control over the glassmorphism and glow effects\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"d3-force physics simulation is used to provide the \\\"Crazy Cognee\\\" vibe for the graph without interactive dependencies. The graph relies on `/api/graph/summary`, which deterministically builds a fast subgraph from the SQLite `memories_log` (last 30 organic modifications) to completely avoid browser lockups and heavy backend load.\",\"reason\":\"to avoid browser lockups and heavy backend load\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Zero technical debt approach to AST parsing: used standard regex string formatting (`File A imports File B`) to naturally teach Cognee the edges without external parsers.\",\"reason\":\"to avoid external parsers and technical debt\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Theater Effect over SSE: To showcase multi-hop reasoning without rewriting the backend to support SSE streaming, the backend `AskYourProject` endpoint returns an explicit `reasoning_path` array. The frontend (`AskYourProject.jsx`) staggers the visual rendering of these nodes artificially to create a real-time \\\"thinking\\\" animation with exactly zero backend processing cost.\",\"reason\":\"to showcase multi-hop reasoning without backend SSE load\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Cognee is the source of truth. Nothing else owns memory.\",\"reason\":\"To ensure a single authoritative store for project knowledge\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Two-tier capture: Tier 1 automatic observation, Tier 2 manual decision notes only.\",\"reason\":\"To separate automatic observation from manual decision capture\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Observer is passive. It never interprets.\",\"reason\":\"To keep observation pure and avoid inference\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Memory Orchestrator owns query construction and output formatting; Cognee owns retrieval and ranking.\",\"reason\":\"to maintain separation of concerns; orchestrator does not re-rank results\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Unified Dataset Rule: Every project uses exactly ONE unified dataset to ensure a connected knowledge graph.\",\"reason\":\"To prevent the Knowledge Graph from fracturing across multiple Cognee namespaces\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Every remember() call's data_id UUID must be stored in SQLite log immediately.\",\"reason\":\"Required for forget() capability\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"improve() runs globally on the unified dataset. Triggered explicitly only: once after initial indexing + every 60 min. Never automatic.\",\"reason\":\"Heavy operation (minutes, not milliseconds); always run as async background task\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"MCP Server is the universal AI interface. No per-tool integrations.\",\"reason\":\"Any MCP-compatible AI assistant connects to the same project memory\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"},{\"decision\":\"Dashboard is read-only. It never edits memory.\",\"reason\":\"To maintain separation of concerns; dashboard only visualizes memory\",\"source\":\"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\",\"confidence\":\"Confirmed\"}]\n\n[2026-07-05T10:48:27.232204]\nQUESTION: Why does this project exists?\nANSWER: {\n  \"answer\": \"The Engram project exists to eliminate the continuity problem where developers lose project understanding long before they lose code, each AI session starts from zero context, AI tools have isolated context, important architectural decisions fade over time, and developers repeatedly explain the same project to different AI assistants. It provides a local-first AI memory layer that continuously understands and preserves project knowledge using Cognee and makes it instantly available to developers and AI assistants.\",\n  \"reasoning_path\": [\n    {\n      \"type\": \"document\",\n      \"name\": \"This chunk details the product specification for... [developers, ai, project]\"\n    },\n    {\n      \"type\": \"document\",\n      \"name\": \"[FILE_MODIFIED - STRUCTURAL] Project File: PRODUCT_SPEC.md\"\n    },\n    {\n      \"type\": \"document\",\n      \"name\": \"engram\"\n    }\n  ]\n}\n\n\nTASK:You are a project intelligence assistant. Answer the user's question using the context graph. You MUST return a raw JSON object with the exact keys: 'answer', 'reasoning_path'. 'reasoning_path' must be an array of objects explicitly mapping the graph traversal path you took. Each object must have 'type' (string, e.g., 'commit', 'document', 'component', 'decision') and 'name' (string). Example: {\"answer\": \"...\", \"reasoning_path\": [{\"type\": \"commit\", \"name\": \"Commit #34\"}, {\"type\": \"document\", \"name\": \"ARCHITECTURE.md\"}]}\nDO NOT wrap the response in markdown blocks like ```json."
+    },
+    {
+      "role": "user",
+      "content": "The question is: `Why Cognee?`\nand here is the context provided with a set of relationships from a knowledge graph separated by \\n---\\n each represented as node1 -- relation -- node2 triplet: `Nodes:\nNode: cognee\n__node_content_start__\n\n__node_content_end__\n\nNode: package\n__node_content_start__\npackage\n__node_content_end__\n\nNode: engram project\n__node_content_start__\nThe Engram project as defined in requirements.txt\n__node_content_end__\n\nNode: [FILE_MODIFIED - STRUCTURAL] Project File: requirements.txt Status:... [file_modified, project, structural]\n__node_content_start__\n[FILE_MODIFIED - STRUCTURAL]\nProject File: requirements.txt\nStatus: FILE_MODIFIED\nContent:\n# Engram Project Requirements\n# Backend Framework\nfastapi\nuvicorn[standard]\n\n# Memory Engine\ncognee\n\n# Database (State)\naiosqlite\n\n# Configuration &amp; Logging\npydantic-settings\nstructlog\n\n# Core Utilities\nwatchdog\ngitpython\n\n# LLM integration (for when we use custom model endpoints)\nlitellm\n\n# test dep\nmcp\n__node_content_end__\n\nNode: [FILE_MODIFIED - STRUCTURAL] Project File: backend/memory/cognee_client.py Status:... [file_modified, structural, content]\n__node_content_start__\n[FILE_MODIFIED - STRUCTURAL]\nProject File: backend/memory/cognee_client.py\nStatus: FILE_MODIFIED\nContent:\n[Content not indexed - Structural change only]\n__node_content_end__\n\nNode: backend/memory/cognee_client.py\n__node_content_start__\nA file in the backend/memory directory.\n__node_content_end__\n\nNode: file\n__node_content_start__\nfile\n__node_content_end__\n\nNode: [FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\n__node_content_start__\n[FILE_MODIFIED - STRUCTURAL]\nProject File: CODEBASE_MEMORY.md\nStatus: FILE_MODIFIED\nContent:\n---\n## Document Governance\n\n**Status:** Living Document\n**Purpose:** Compressed working memory for AI coding sessions. Provides fast project context without requiring full document reads.\n**Owner:** AI (with human oversight)\n**AI May Modify:** Yes \u2014 when a phase changes, a significant engineering decision is made, or architectural clarification occurs.\n\n**Update Policy:**\n- Read this file first, every session, before anything else.\n- Update when the current implementation phase changes.\n- Update when a significant engineering decision, blocker, or architectural clarification occurs.\n- Do not store complete project history here. That belongs in Git.\n- Do not duplicate information already stable in other documents.\n- Keep this document under approximately 10 KB.\n- Older implementation notes should be removed as the project progresses.\n\n**Modification Checklist (run before editing):**\n&gt; Did the implementation phase change? \u2192 Update phase status.\n&gt; Was a significant engineering decision made? \u2192 Add to Current Decisions.\n&gt; Did the architecture change? \u2192 Update Architecture Snapshot and notify human.\n&gt; Is this document approaching 10 KB? \u2192 Trim older, resolved entries.\n&gt; For anything else \u2192 Do not modify.\n\n**Global Documentation Rule (applies to ALL project documents):**\nBefore modifying any document in this project, evaluate:\n1. Did the product philosophy change? \u2192 If NO, do not touch PRODUCT_PRINCIPLES.md.\n2. Did the product scope or MVP change? \u2192 If NO, do not touch PRODUCT_SPEC.md.\n3. Did the architecture actually change? \u2192 If NO, do not touch ARCHITECTURE.md.\n4. Was a phase completed or reprioritized? \u2192 If YES, update IMPLEMENTATION_PLAN.md.\n5. Was a significant engineering decision made? \u2192 If YES, update CODEBASE_MEMORY.md.\n\n---\n\n# CODEBASE_MEMORY.md\n\n# Project Memory\n\nThis document is the primary context file for AI coding assistants.\n\nRead this file first, before any other project document.\n\nIt is intentionally concise. It is a compressed snapshot of the project state, not full documentation.\n\nDo not store implementation details here.\n\nUpdate only when architecture, scope, or phase changes.\n\n---\n\n# Project Status\n\n**Current Phase:** Phase 9 \u2014 Polish\n\n**Overall Progress:** Phase 8 Completed (Dashboard built with React/Vite, Vanilla CSS Neural Cortex theme, 8 views, and God Mode)\n\n**Last Updated:** 2026-07-02\n\n---\n\n# Product Mission\n\nBuild a local-first AI memory layer that continuously understands software projects,\npreserves project knowledge over time using Cognee, and makes that understanding\ninstantly available to both developers and AI assistants.\n\nMemory is the product.\n\nContinuity is the goal.\n\n---\n\n# Core Problem\n\nDevelopers repeatedly lose project understanding because knowledge becomes fragmented across:\n\n- AI conversations\n- Development sessions\n- Time gaps\n- Different AI assistants and tools\n\nThe goal is not better code generation.\n\nThe goal is continuity.\n\n---\n\n# Technology Stack\n\n| Layer | Technology |\n|---|---|\n| Backend | Python 3.11+, FastAPI, Uvicorn |\n| Memory engine | Cognee |\n| LLM provider | Nvidia nemotron-3-super-120b-a12b and nv-embed-v1 (via local proxy gateway) |\n| File watching | watchdog |\n| Git operations | gitpython |\n| Observer state | SQLite via aiosqlite |\n| CLI | Typer |\n| MCP server | mcp Python SDK (SSE transport) |\n| Frontend | React + Vite |\n| Styling | Vanilla CSS |\n\n---\n\n# Architecture Snapshot\n\n```\nDeveloper\n  \u2502\n  \u251c\u2500\u2500 Works normally\n  \u2502       \u2502\n  \u2502   Observer Service\n  \u2502       \u2502\n  \u2502   Event Intelligence (filters noise)\n  \u2502       \u2502\n  \u2502   Memory Pipeline\n  \u2502   (Normalizer \u2192 Deduplicator \u2192 LLM Extraction \u2192 remember())\n  \u2502       \u2502\n  \u2502     Cognee\n  \u2502   (remember / recall / improve / forget)\n  \u2502       \u2502\n  \u2502   Memory Orchestrator\n  \u2502   (orchestrates retrieval, returns normalized output)\n  \u2502      / \\\n  \u2502     /   \\\n  \u2502 Dashboard  MCP Server\n  \u2502 (human)    (AI assistants)\n  \u2502\n  \u2514\u2500\u2500 Writes manual note\n          \u2502\n      Memory Pipeline (direct entry, bypasses Observer)\n          \u2502\n        Cognee\n```\n\n---\n\n## Phase 7: Decision Capture (Tier 2 bypass) [COMPLETED]\n**Goal:** Expose endpoints for the explicit decision recording workflows.\n\n**Steps:**\n1. \u2705 **Implement REST API:** Created `POST /api/notes` in `backend/api/routes.py` and `GET /api/health/nudges` to surface queue.\n2. \u2705 **Handle MANUAL_NOTE events:** Handled in `backend/pipeline/normalizer.py` to correctly wrap them into `StructuredEvent`. Updated `processor.py` to change `GIT_COMMIT` to `GIT_COMMIT_WITH_REASON` to accurately log them.\n3. \u2705 **Implement CLI command:** Built `cli/main.py` using `typer` to send notes to `POST /api/notes`.\n4. \u2705 **Implement Git hook installer:** Added `memory install-hook` in `cli/main.py`.\n5. \u2705 **Add MCP `add_decision` tool:** Added to `backend/mcp_server.py`.\n6. \u2705 **Finalize Nudge Queue Suppression:** Updated `has_recent_decision` in `backend/db/state.py` to suppress nudges if any `MANUAL_NOTE` or `GIT_COMMIT_WITH_REASON` was logged in the last 24 hours.\n\n**Key Design Decisions:**\n- Manual notes are normalized directly as `MANUAL_NOTE` events, bypassing the file observer, to ensure accurate decision capture.\n- Nudge suppression checks globally across all paths for recent manual decisions, offering a better developer experience (i.e. &#34;I already explained my reasoning today&#34;).\n- Memory Pipeline stages: Normalizer \u2192 Deduplicator \u2192 two paths:\n  - Reasoning to extract (reasoning language or Tier 2 note) \u2192 LLM Interpretation \u2192 `cognee.remember()` node_set=&#34;decisions&#34;\n  - Structural change only \u2192 `cognee.remember()` directly, no LLM, correct node_set\n- Deduplicator prevents redundant `remember()` calls using content hashing + SQLite log.\n- Initial indexing runs on first project registration: backfills last 50 commits and existing docs/deps.\n\n## Phase 8: Advanced Cognee Integrations &amp; Dashboard [COMPLETED]\n**Goal:** Deep mathematical exploitation of the graph + Visual project understanding.\n\n**Steps:**\n1. \u2705 **Advanced Endpoints:** Exposed `/api/memory/improve` (Dream Cycle), `/api/memory/root-cause` (Multi-hop), and `/api/memory/prune` (Surgical debt deletion).\n2. \u2705 **Matrix Vision:** Implemented lightweight Regex Dependency Extractor in `normalizer.py` to ingest structural AST edges automatically on commit.\n3. \u2705 **Ticking Time Bomb Debt:** Updated `extractor.py` and `state.py` to parse and track `#expires:YYYY-MM-DD` tags for instantaneous pruning.\n4. \u2705 **UI Shell:** React + Vite initialized. Vanilla CSS with &#34;Neural Cortex&#34; aesthetic.\n5. \u2705 **Components:** GlassCard and Sidebar components built.\n6. \u2705 **API Integration:** Created `api/client.js` wrapping all endpoints.\n7. \u2705 **Core Views:** `ProjectOverview`, `AskYourProject` (Command Palette), `RecentDecisions`, `ArchitectureEvolution`, `CurrentFocus`, `MemoryTimeline` built to render data from `/api/query`.\n8. \u2705 **Advanced Views:** `MemorySummaryGraph` built using `d3-force` for a dynamic network visualization. `MemoryHealth` built with God Mode controls (Improve, Prune, Root Cause).\n9. \u2705 **Hackathon Visualizations:** Added the `/api/graph/summary` deterministic subgraph endpoint. Implemented the staggered Zero-Load Reasoning Trace animation in the frontend.\n\n**Key Design Decisions:**\n- Pure Vanilla CSS used to maintain ultimate control over the glassmorphism and glow effects.\n- d3-force physics simulation is used to provide the &#34;Crazy Cognee&#34; vibe for the graph without interactive dependencies. The graph relies on `/api/graph/summary`, which deterministically builds a fast subgraph from the SQLite `memories_log` (last 30 organic modifications) to completely avoid browser lockups and heavy backend load.\n- Zero technical debt approach to AST parsing: used standard regex string formatting (`File A imports File B`) to naturally teach Cognee the edges without external parsers.\n- **Theater Effect over SSE:** To showcase multi-hop reasoning without rewriting the backend to support SSE streaming, the backend `AskYourProject` endpoint returns an explicit `reasoning_path` array. The frontend (`AskYourProject.jsx`) staggers the visual rendering of these nodes artificially to create a real-time &#34;thinking&#34; animation with exactly zero backend processing cost.\n\n---\n\n# Current Decisions\n\n## Memory Architecture\n- Cognee is the source of truth. Nothing else owns memory.\n- Two-tier capture: Tier 1 automatic observation, Tier 2 manual decision notes only.\n- Observer is passive. It never interprets.\n- Manual notes bypass the Observer entirely. They enter at the Memory Pipeline.\n- Memory Pipeline stages: Normalizer \u2192 Deduplicator \u2192 two paths:\n  - Reasoning to extract (reasoning language or Tier 2 note) \u2192 LLM Interpretation \u2192 `cognee.remember()` node_set=&#34;decisions&#34;\n  - Structural change only \u2192 `cognee.remember()` directly, no LLM, correct node_set\n- Deduplicator prevents redundant `remember()` calls using content hashing + SQLite log.\n- Initial indexing runs on first project registration: backfills last 50 commits and existing docs/deps.\n\n## Why Capture\n- Commit messages with explicit reasoning language are extracted as confirmed decision notes. No fabrication.\n- Commit messages without reasoning produce structural change records only. No &#34;why&#34; claim made.\n- Nudge queue triggers on high-signal events (dep changes, config changes, module creation/deletion)\n  with no confirmed reason \u2014 not only on bad commit messages.\n- Confirmed reason check: SQLite lookup (Tier 2 notes or commit extractions for same path, last 24h). No `recall()`.\n- README and docs changes are NOT nudge triggers \u2014 they are the recorded reason, processed as Tier 1.\n- Unconfirmed inferences never enter Cognee. Uncertain data stays in SQLite only.\n- Optional git commit hook (`memory install-hook`) prompts at commit time. Never required.\n\n## Retrieval Architecture\n- Memory Orchestrator owns query construction and output formatting. Cognee owns retrieval and ranking.\n- `recall()` returns results pre-ranked by `importance_weight`. Memory Orchestrator does NOT re-rank.\n- `recall()` uses `node_set` for category scoping and `query_type` for strategy selection.\n- Dashboard formats for humans. MCP Server formats for AI assistants.\n- One retrieval system. Two interaction surfaces.\n\n## Cognee Usage Rules\n- Unified Dataset Rule: Every project uses exactly ONE unified dataset to ensure a connected knowledge graph. Do not fracture datasets.\n- Every `remember()` call&#39;s `data_id` UUID (extracted from the awaited `RememberResult`) must be stored in SQLite log immediately. (Note: `node_set` parameter was removed from Cognee 1.2.2 API, so we rely on Semantic Normalizer tags).\n- `improve()` runs globally on the unified dataset. Triggered explicitly only: once after initial indexing + every 60 min. Never automatic.\n- `forget()` targets by `data_id` UUID from SQLite log. Cascades automatically.\n- Bulk forget: query SQLite by metadata \u2192 iterate UUIDs. Batch deletions \u2014 race condition risk on rapid re-ingest.\n- Cognee local backend: SQLite (relational) + LanceDB (vector) + KuzuDB (graph). All embedded, no Docker.\n- Memory Health stats come from application SQLite log only. Never query Cognee&#39;s internal databases directly.\n\n## Trust and Explainability\n- Retrieved facts and AI interpretations must always be visually distinguished.\n- Never present synthesized summaries as historical facts.\n- Every memory must be traceable to its origin source.\n- LLM Extraction never fabricates a &#34;why&#34; not present in available signals.\n\n## Cross-Tool Continuity\n- MCP Server is the universal AI interface. No per-tool integrations.\n- Any MCP-compatible AI assistant connects to the same project memory.\n\n## Infrastructure\n- Local-first. Project data stays on the developer&#39;s machine.\n- External calls only for LLM processing (Nvidia models). Cognee also makes LLM calls during remember() and improve() \u2014 same quota.\n- Zero cost constraint. No paid APIs during development or demo.\n- One Cognee dataset per project, keyed by project directory path.\n- Pipeline failures write to a SQLite retry queue. Three retries with backoff. Skip counts in Memory Health.\n\n## Dashboard\n- Dashboard is read-only. It never edits memory.\n- Visual graph exploration is achieved via the `MemorySummaryGraph` using D3 force simulation pulling from the optimized `/api/graph/summary` endpoint.\n- Reasoning traces in the UI use a &#34;theater effect&#34; (staggered local animation) to parse the `reasoning_path` array from the backend, simulating SSE without backend load.\n- Memory Health shows: indexing status, skip counts, nudge queue, last improve() timestamp.\n\n---\n\n# Current Scope\n\n## MVP Includes\n\n- Background observer service\n- Memory pipeline with deduplication\n- Cognee memory integration\n- MCP server (four tools)\n- Manual decision notes (CLI + API)\n- Dashboard (eight views)\n\n## Out of Scope\n\n- IDE extensions\n- Team collaboration\n- Cloud sync\n- Visual graph exploration\n- Advanced authentication\n- Multi-project UI management (architecture supports it, UI does not)\n- Enterprise features\n\n---\n\n# Implementation Phase Order\n\n```\nPhase 0 \u2014 Validate Foundation       (spikes only, no production code)\nPhase 1 \u2014 Project Foundation\nPhase 2 \u2014 Observer Service\nPhase 3 \u2014 Memory Pipeline\nPhase 4 \u2014 Cognee Integration\nPhase 5 \u2014 Memory Orchestrator\nPhase 6 \u2014 MCP Server                (before Dashboard \u2014 core differentiator) (COMPLETED)\nPhase 7 \u2014 Decision Capture          (CLI note + git hook + nudge queue)\nPhase 8 \u2014 Dashboard                 (last \u2014 depends on full data layer)\nPhase 9 \u2014 Polish\n```\n\n---\n\n# Coding Principles\n\n- Simplicity over cleverness.\n- Small modules with single responsibility.\n- No premature optimization.\n- Avoid unnecessary abstractions.\n- Prefer readable code over compact code.\n- Every component has one clear purpose and does not cross its boundary.\n\n---\n\n# AI Assistant Instructions\n\n## Reading Order\n\nRead this file first. Always.\n\nRead other documents only when you need deeper context on a specific topic:\n\n| Document | When to read it |\n|---|---|\n| `PRODUCT_PRINCIPLES.md` | When making product or UX decisions |\n| `ARCHITECTURE.md` | When working on system design or component boundaries |\n| `PRODUCT_SPEC.md` | When implementing a specific feature |\n| `IMPLEMENTATION_PLAN.md` | When starting or continuing a phase |\n\n## Before Implementing Anything\n\n1. Confirm which phase is currently active.\n2. Confirm the component you are working on.\n3. Confirm that the component&#39;s responsibility is understood.\n4. Do not cross component boundaries.\n5. Do not introduce dependencies not listed in the technology stack.\n\n## Never Do This\n\n- Do not store memory outside of Cognee.\n- Do not make the Dashboard edit memory.\n- Do not make the Observer interpret events.\n- Do not make the Memory Orchestrator store or re-rank results.\n- Do not introduce paid LLM APIs. Use the provided Nvidia API endpoints only.\n- Do not skip the Deduplicator stage in the Memory Pipeline.\n- Do not call `remember()` without `self_improvement=False` and `node_set`.\n- Do not call `improve()` automatically \u2014 explicit schedule only.\n- Do not query Cognee&#39;s internal databases (SQLite/.cognee_system, LanceDB, KuzuDB) directly.\n- Do not forget() and immediately re-ingest overlapping vectors \u2014 race condition risk.\n- Do not use `external_metadata` alone for categorisation \u2014 use `node_set`.\n\n---\n\n# Updating This File\n\nUpdate this file when any of these change:\n\n- Current implementation phase\n- Major architectural decision\n- Product scope\n- Technology stack\n\nDo NOT update after every commit.\n\nThis is long-term memory, not a changelog.\n\n__node_content_end__\n\nNode: one_cognee_dataset_per_project\n__node_content_start__\nEach project uses exactly one Cognee dataset, keyed by the project directory path, to ensure a unified knowledge graph.\n__node_content_end__\n\nNode: This chunk is about: - Files: backend/memory/cognee_client.py... [backend/memory/cognee_client.py, structural, only]\n__node_content_start__\nThis chunk is about: - Files: backend/memory/cognee_client.py - Modifications: Structural change only Facts: - The file backend/memory/cognee_client.py was modified. - The modification involved only structural changes with no content indexed.\n__node_content_end__\n\nNode: local_first\n__node_content_start__\nThe system is local-first, meaning project data stays on the developer&#39;s machine with external calls only for LLM processing.\n__node_content_end__\n\nNode: file_modified\n__node_content_start__\nStatus indicating a file has been modified structurally, with content not indexed\n__node_content_end__\n\nNode: rule\n__node_content_start__\nrule\n__node_content_end__\n\nNode: text_d527b4dc265d73ebaa92e107892d3110\n__node_content_start__\nNone\n__node_content_end__\n\nNode: memory_health_stats_source\n__node_content_start__\nMemory Health statistics are derived from the application&#39;s SQLite log only, never by querying Cognee&#39;s internal databases directly.\n__node_content_end__\n\nNode: [FILE_MODIFIED - STRUCTURAL] Project File: PRODUCT_SPEC.md Status:... [project, memory, ai]\n__node_content_start__\n[FILE_MODIFIED - STRUCTURAL]\nProject File: PRODUCT_SPEC.md\nStatus: FILE_MODIFIED\nContent:\n---\n## Document Governance\n\n**Status:** Mostly Immutable\n**Purpose:** Defines what the product is, what features belong in the MVP, and the core user experience.\n**Owner:** Human (scope decisions only)\n**AI May Modify:** No \u2014 never automatically. Only if explicitly instructed after an official product scope or feature change.\n\n**Update Policy:**\n- Read every session before implementing any feature.\n- Do not update to reflect implementation progress.\n- Do not add features without explicit human approval.\n- Only modify when the MVP scope or product feature set officially changes.\n\n**Modification Checklist (run before editing):**\n&gt; Did the product scope or MVP feature set officially change?\n&gt; If NO \u2014 do not touch this document.\n\n---\n\n# PRODUCT_SPEC.md\n\n# Product Specification\n\n## Working Name\n\nEngram\n\n---\n\n# One Sentence Product Definition\n\nA local-first AI memory layer that continuously understands the evolution of a software project,\npreserves its knowledge over time using Cognee, and makes that understanding instantly available\nto both developers and AI assistants.\n\n---\n\n# Core Problem\n\nDevelopers lose project understanding long before they lose code.\n\nEvery new AI session starts from zero.\n\nEvery AI tool has isolated context.\n\nImportant architectural decisions disappear over time.\n\nDevelopers repeatedly explain the same project to different AI assistants.\n\nThe product eliminates this continuity problem.\n\n---\n\n# Target Users\n\n## Primary\n\n- Solo developers\n- Indie hackers\n- AI-first developers\n\n## Secondary\n\n- Small engineering teams\n- Startup teams\n- Open-source contributors\n\n---\n\n# Product Philosophy\n\nThe developer should continue working exactly as they do today.\n\nMemory should build automatically.\n\nThe developer should never feel like they are maintaining documentation.\n\nThe system silently becomes smarter every day.\n\n---\n\n# Core User Journey\n\n## Step 1 \u2014 One-Time Setup\n\nUser selects a project directory and provides the required API key once.\n\nThe background service begins observing meaningful project activity immediately.\n\nNo further configuration is required.\n\n---\n\n## Step 2 \u2014 Developer Works Normally\n\nThe developer works without thinking about memory.\n\nExamples:\n\n- Writing code\n- Creating files\n- Updating README\n- Changing dependencies\n- Making commits\n- Writing manual decision notes (optional)\n\nThe product continuously builds project memory in the background.\n\n---\n\n## Step 3 \u2014 Instant Continuity\n\nWeeks later, the developer opens any supported AI assistant.\n\nInstead of explaining the project again, the AI immediately understands:\n\n- Current architecture\n- Important decisions\n- Recent changes\n- Project evolution\n- Current direction\n\n---\n\n# Core User Moments\n\n## Moment 1 \u2014 &#34;I didn&#39;t have to teach it.&#34;\n\nThe product quietly understands the project without being told.\n\n---\n\n## Moment 2 \u2014 &#34;It actually knows why this exists.&#34;\n\nThe AI answers using historical project knowledge, not just current code.\n\n---\n\n## Moment 3 \u2014 &#34;I can continue from anywhere.&#34;\n\nChanging AI tools never means losing project understanding.\n\n---\n\n# Product Features\n\n## Automatic Observation\n\nContinuously watches:\n\n- Git commits\n- Project structure changes\n- Documentation updates\n- Configuration changes\n- Dependency changes\n\nNo manual maintenance required.\n\n---\n\n## Project Memory\n\nBuilds and organizes:\n\n- Entities\n- Relationships\n- Architecture\n- Decisions\n- Evolution timeline\n\nPowered by Cognee.\n\n---\n\n## Intelligent Recall\n\nTwo interaction surfaces for querying project memory:\n\n### Dashboard \u2014 Ask Your Project\n\nA search bar in the dashboard labeled &#34;Ask Your Project.&#34;\n\nExample queries:\n\n- Why was authentication implemented this way?\n- What changed last week?\n- Explain the payment flow.\n- Where is user onboarding handled?\n\nThe dashboard sends the query to the Memory Orchestrator,\nwhich calls `cognee.recall()` and renders the sourced result.\nThe response includes a `reasoning_path` array, which the Dashboard renders with a zero-load staggered animation (theater effect) to simulate true multi-hop reasoning traces.\n\n### MCP \u2014 AI Assistant Access\n\nAI assistants never display a search UI.\n\nThey invoke the MCP recall tool automatically when project context is needed.\n\nHumans use the Dashboard.\nAI assistants use MCP.\n\nOne retrieval system. Two interaction surfaces.\n\n---\n\n## AI Continuity\n\nEvery connected AI assistant sees the same project understanding.\n\nNo repeated explanations.\n\nNo manual context transfer.\n\n---\n\n## Decision Notes\n\nOptional. Extremely lightweight.\n\nDeveloper records architectural reasoning that automatic observation cannot capture:\n\n```\nmemory note &#34;Switched from JWT to Better Auth because...&#34;\n```\n\nThese become first-class project memory, ingested directly into Cognee.\n\n---\n\n## Dashboard\n\nRead-only visualization of project memory.\n\n### Views\n\n**Project Overview**\nCurrent project state at a glance.\n\n**Ask Your Project**\nSearch interface for querying project memory.\nReturns sourced results with clear distinction between retrieved facts and AI interpretations.\n\n**Recent Decisions**\nTier 2 decision notes and inferred decisions from git history.\n\n**Architecture Evolution**\nChronological timeline of significant architectural changes.\nExamples: authentication introduced, database changed, dependency migration, module split, API redesign.\nExplains how the project evolved over time.\n\n**Current Focus**\nSummarizes what the developer is actively working on.\nDerived from: recent git commits, recent meaningful file activity, recent decision notes.\nNot predictive. Reflects recent development activity only.\n\n**Memory Timeline**\nChronological feed of all captured project events.\n\n**Memory Summary Graph (Hackathon Demo)**\nA lightweight, non-interactive D3 force-directed visualization of major project entities and their relationships.\nDeterministically powered by the new `/api/graph/summary` endpoint to guarantee &lt;0.1s render times.\nHelps users understand how project concepts connect visually. Read-only. Not interactive for exploration.\n\n**Memory Health**\nOperational health indicator for the memory system.\nShows: last successful indexing, pending observations, projects being tracked,\nmemory freshness, indexing status.\nNot an AI confidence score.\n\n---\n\n# What We Do NOT Build\n\nWe are NOT:\n\n- Another IDE\n- Another code editor\n- Another documentation platform\n- Another note-taking application\n- Another chatbot\n- Another code generator\n\nMemory is the product.\n\n---\n\n# MVP Scope\n\nThe MVP must deliver:\n\n- \u2713 Background observation\n- \u2713 Manual decision notes\n- \u2713 Cognee memory integration\n- \u2713 Memory recall\n- \u2713 MCP server\n- \u2713 Dashboard\n\n---\n\n# Nice To Have (Post-Hackathon)\n\n- Visual graph exploration (pan, zoom, navigation, filtering)\n- Git history timeline\n- Advanced search filters\n- Architecture snapshots\n- AI suggestions\n- Multi-project support\n- Team workspaces\n\nThese are valuable but not required for a successful hackathon demo.\n\n---\n\n# Demo Scenario\n\nThe developer works on a project for several days.\n\nThe product silently builds memory throughout.\n\nThe developer opens a completely new AI session.\n\nWithout manually explaining anything, the AI immediately answers:\n\n- What the project is\n- Why architectural decisions were made\n- What changed recently\n- Where important features exist\n\nThe audience immediately understands that memory persisted beyond a single AI conversation.\n\n&gt; Note: The product&#39;s own development history will serve as the primary demo dataset.\n&gt; This makes the demo self-demonstrating \u2014 the product built memory of itself.\n\n---\n\n# Success Criteria\n\nThe product succeeds if developers stop thinking about preserving project context.\n\nMemory should feel invisible while being continuously useful.\n\nThe developer should never think: &#34;I have to explain my project again.&#34;\n\nInstead they simply continue building.\n\n__node_content_end__\n\nNode: engram\n__node_content_start__\nA local-first AI memory layer that continuously understands the evolution of a software project, preserves its knowledge over time using Cognee, and makes that understanding instantly available to both developers and AI assistants. The product eliminates the continuity problem of developers losing project understanding before they lose code and having to repeatedly explain the same project to different AI assistants. It builds project memory in the background and provides instant recall via dashboard and MCP for AI assistants and developers alike. Engram&#39;s core user moments include: not having to teach the AI, the AI knowing why things exist, and being able to continue from anywhere. The product philosophy is that memory should build automatically without the developer feeling like they are maintaining documentation. Engram consists of automatic observation, project memory powered by Cognee, intelligent recall via dashboard and MCP, AI continuity, optional decision notes, and a dashboard with multiple views. \n__node_content_end__\n\nNode: This chunk details the product specification for... [developers, ai, project]\n__node_content_start__\nThis chunk details the product specification for Engram, a local-first AI memory layer that continuously understands and preserves software project knowledge using Cognee and provides instant continuity for developers and AI assistants. - Engram is defined as a local-first AI memory layer that continuously understands project evolution, preserves knowledge via Cognee, and makes understanding instantly available to developers and AI assistants. - The core problem addressed is that developers lose project understanding before they lose code, and each AI session starts from zero context. - Primary target users are solo developers, indie hackers, and AI-first developers; secondary users include small engineering teams, startup teams, and open-source contributors. - The product philosophy emphasizes that developers should work unchanged, memory should build automatically, and developers should never feel like they are maintaining documentation. - The core user journey consists of one-time setup (project directory+\n__node_content_end__\n\nNode: This chunk provides the current project status... [cognee, memory, phase]\n__node_content_start__\nThis chunk provides the current project status and completed phases as recorded in the CODEBASE_MEMORY.md file. - As of 2026-07-02, the project is in Phase 9 (Polish) and Phase 8 is completed. - Phase 8 completion delivered the dashboard (React/Vite, Vanilla CSS Neural Cortex theme, 8 views, God Mode) and advanced Cognee features (improve, root-cause, prune endpoints, regex dependency extractor, debt tracking). - The project&#39;s mission is to build a local-first AI memory layer that continuously understands software projects and preserves knowledge using Cognee for continuity. - The technology stack comprises Python 3.11+/FastAPI/Uvicorn backend, Cognee memory engine, Nvidia nemotron-3-super-120b-a12b and nv-embed-v1 LLMs, watchdog, gitpython, aiosqlite, Typer, mcp Python SDK, React/Vite frontend, and Vanilla CSS. - The architecture centers on an observer service feeding a memory pipeline (normalizer, deduplicator, LLM extraction/structural path) into Cognee, with a memory orchestrator serving the dashboard (\u4eba\u9593\n__node_content_end__\n\n\nConnections:\ncognee --[is_a]--&gt; package  (cognee is a package.)\nengram project --[depends_on]--&gt; cognee  (Engram Project depends on cognee for Memory Engine)\n[FILE_MODIFIED - STRUCTURAL] Project File: requirements.txt Status:... [file_modified, project, structural] --[contains]--&gt; cognee  ([FILE_MODIFIED - STRUCTURAL] Project File: requirements.txt Status: FILE_MODIFIE contains cognee.)\n[FILE_MODIFIED - STRUCTURAL] Project File: backend/memory/cognee_client.py Status:... [file_modified, structural, content] --[contains]--&gt; backend/memory/cognee_client.py  (Document chunk mentions backend/memory/cognee_client.py: A file in the backend/memory directory.)\nbackend/memory/cognee_client.py --[is_a]--&gt; file  (backend/memory/cognee_client.py is a file.)\n[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase] --[contains]--&gt; one_cognee_dataset_per_project  (Document chunk mentions one_cognee_dataset_per_project: Each project uses exactly one Cognee dataset, keyed by the project directory path, to ensure a unified knowledge graph.)\nThis chunk is about: - Files: backend/memory/cognee_client.py... [backend/memory/cognee_client.py, structural, only] --[made_from]--&gt; [FILE_MODIFIED - STRUCTURAL] Project File: backend/memory/cognee_client.py Status:... [file_modified, structural, content]  (This chunk is about: - Files: backend/memory/cognee_client.py - Modifications: S made from [FILE_MODIFIED - STRUCTURAL] Project File: backend/memory/cognee_client.py Statu.)\none_cognee_dataset_per_project --[enables]--&gt; local_first  (Using one Cognee dataset per project keyed by the project directory path enables the local-first approach by keeping data on the developer&#39;s machine.)\nbackend/memory/cognee_client.py --[experienced]--&gt; file_modified  (The file backend/memory/cognee_client.py experienced a FILE_MODIFIED event (structural change only).)\none_cognee_dataset_per_project --[is_a]--&gt; rule  (one_cognee_dataset_per_project is a rule.)\n[FILE_MODIFIED - STRUCTURAL] Project File: backend/memory/cognee_client.py Status:... [file_modified, structural, content] --[is_part_of]--&gt; text_d527b4dc265d73ebaa92e107892d3110  ([FILE_MODIFIED - STRUCTURAL] Project File: backend/memory/cognee_client.py Statu is part of text_d527b4dc265d73ebaa92e107892d3110.)\n[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase] --[contains]--&gt; memory_health_stats_source  (Document chunk mentions memory_health_stats_source: Memory Health statistics are derived from the application&#39;s SQLite log only, never by querying Cognee&#39;s internal databases directly.)\n[FILE_MODIFIED - STRUCTURAL] Project File: PRODUCT_SPEC.md Status:... [project, memory, ai] --[contains]--&gt; engram  (Document chunk mentions engram: A local-first AI memory layer that continuously understands the evolution of a software project, preserves its knowledge over time using Cognee, and makes that understanding instantly available to both developers and AI assistants. The product eliminates the continuity problem of developers losing project understanding before they lose code and having to repeatedly explain the same project to different AI assistants. It builds project memory in the background and provides instant recall via dashboard and MCP for AI assistants and developers alike. Engram&#39;s core user moments include: not having to teach the AI, the AI knowing why things exist, and being able to continue from anywhere. The product philosophy is that memory should build automatically without the developer feeling like they are maintaining documentation. Engram consists of automatic observation, project memory powered by Cognee, intelligent recall via dashboard and MCP, AI continuity, optional decision notes, and a dashboard with multiple views.)\nThis chunk details the product specification for... [developers, ai, project] --[made_from]--&gt; [FILE_MODIFIED - STRUCTURAL] Project File: PRODUCT_SPEC.md Status:... [project, memory, ai]  (This chunk details the product specification for Engram, a local-first AI memory made from [FILE_MODIFIED - STRUCTURAL] Project File: PRODUCT_SPEC.md Status: FILE_MODIFIED.)\nThis chunk provides the current project status... [cognee, memory, phase] --[made_from]--&gt; [FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]  (This chunk provides the current project status and completed phases as recorded  made from [FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status: FILE_MODIF.)`"
+    }
+  ],
+  "model": "nvidia/nemotron-3-super-120b-a12b"
+}
+
+--- OUTGOING to embeddings ---
+{
+  "input": [
+    "Why Cognee?\n{\n  \"answer\": \"Cognee is selected as the memory engine because it provides a local-first, unified knowledge graph that continuously preserves project knowledge, enables instant recall for developers and AI assistants, and serves as the single source of truth, ensuring continuity and eliminating the need to repeatedly explain project context.\",\n  \"reasoning_path\": [\n    {\n      \"type\": \"project\",\n      \"name\": \"engram project\"\n    },\n    {\n      \"type\": \"package\",\n      \"name\": \"cognee\"\n    },\n    {\n      \"type\": \"document\",\n      \"name\": \"[FILE_MODIFIED - STRUCTURAL] Project File: PRODUCT_SPEC.md Status:... [project, memory, ai]\"\n    },\n    {\n      \"type\": \"document\",\n      \"name\": \"[FILE_MODIFIED - STRUCTURAL] Project File: CODEBASE_MEMORY.md Status:... [memory, \u2502, phase]\"\n    },\n    {\n      \"type\": \"rule\",\n      \"name\": \"one_cognee_dataset_per_project\"\n    },\n    {\n      \"type\": \"concept\",\n      \"name\": \"local_first\"\n    }\n  ]\n}"
+  ],
+  "model": "nvidia/nv-embed-v1",
+  "input_type": "query"
+}
+
+--- OUTGOING to chat/completions ---
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "Respond to me with the following string: \"test\""
+    },
+    {
+      "role": "user",
+      "content": "test"
+    }
+  ],
+  "model": "nvidia/nemotron-3-super-120b-a12b"
+}
+
+--- OUTGOING to embeddings ---
+{
+  "input": [
+    "test"
+  ],
+  "model": "nvidia/nv-embed-v1",
+  "input_type": "query"
+}
+
+--- OUTGOING to chat/completions ---
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a top-tier algorithm designed for extracting information in structured formats to build a knowledge graph.\n**Nodes** represent entities and concepts. They're akin to Wikipedia nodes.\n**Edges** represent relationships between concepts. They're akin to Wikipedia links.\nEvery edge should include a description when the text supports relevant\ninformation about the endpoints. The description must use the endpoint names,\nstay dry and efficient, and may include useful qualifiers from the source text.\nDo not add outside knowledge.\n  - Good: Alice works at Acme as a platform engineer on the search team.\n  - Bad: This edge describes an employment relationship.\n\nThe aim is to achieve simplicity and clarity in the knowledge graph.\n# 1. Labeling Nodes\n**Consistency**: Ensure you use basic or elementary types for node labels.\n  - For example, when you identify an entity representing a person, always label it as **\"Person\"**.\n  - Avoid using more specific terms like \"Mathematician\" or \"Scientist\", keep those as \"profession\" property.\n  - Don't use too generic terms like \"Entity\".\n**Node IDs**: Never utilize integers as node IDs.\n  - Node IDs should be names or human-readable identifiers found in the text.\n**Node Names**: Every node MUST include a \"name\" field.\n  - Use the most complete human-readable name for the entity (e.g., \"Albert Einstein\", \"Python\").\n# 2. Handling Numerical Data and Dates\n  - For example, when you identify an entity representing a date, make sure it has type **\"Date\"**.\n  - Extract the date in the format \"YYYY-MM-DD\"\n  - If not possible to extract the whole date, extract month or year, or both if available.\n  - **Property Format**: Properties must be in a key-value format.\n  - **Quotation Marks**: Never use escaped single or double quotes within property values.\n  - **Naming Convention**: Use snake_case for relationship names, e.g., `acted_in`.\n# 3. Coreference Resolution\n  - **Maintain Entity Consistency**: When extracting entities, it's vital to ensure consistency.\n  If an entity, is mentioned multiple times in the text but is referred to by different names or pronouns,\n  always use the most complete identifier for that entity throughout the knowledge graph.\nRemember, the knowledge graph should be coherent and easily understandable, so maintaining consistency in entity references is crucial.\n# 4. Strict Compliance\nAdhere to the rules strictly. Non-compliance will result in termination"
+    },
+    {
+      "role": "user",
+      "content": "[FILE_CREATED - STRUCTURAL]\nProject File: assets\nStatus: FILE_CREATED\nContent:\n[Content not indexed - Structural change only]"
+    }
+  ],
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "tool_choice": {
+    "type": "function",
+    "function": {
+      "name": "KnowledgeGraph"
+    }
+  },
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "KnowledgeGraph",
+        "description": "Knowledge graph.",
+        "parameters": {
+          "$defs": {
+            "Edge": {
+              "description": "Edge in a knowledge graph.",
+              "properties": {
+                "source_node_id": {
+                  "title": "Source Node Id",
+                  "type": "string"
+                },
+                "target_node_id": {
+                  "title": "Target Node Id",
+                  "type": "string"
+                },
+                "relationship_name": {
+                  "title": "Relationship Name",
+                  "type": "string"
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Concrete one-sentence fact expressed by this edge, using endpoint names.",
+                  "title": "Description"
+                }
+              },
+              "required": [
+                "source_node_id",
+                "target_node_id",
+                "relationship_name"
+              ],
+              "title": "Edge",
+              "type": "object"
+            },
+            "Node": {
+              "description": "Node in a knowledge graph.",
+              "properties": {
+                "id": {
+                  "title": "Id",
+                  "type": "string"
+                },
+                "name": {
+                  "default": "",
+                  "title": "Name",
+                  "type": "string"
+                },
+                "type": {
+                  "title": "Type",
+                  "type": "string"
+                },
+                "description": {
+                  "title": "Description",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "description"
+              ],
+              "title": "Node",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "nodes": {
+              "items": {
+                "$ref": "#/$defs/Node"
+              },
+              "title": "Nodes",
+              "type": "array"
+            },
+            "edges": {
+              "items": {
+                "$ref": "#/$defs/Edge"
+              },
+              "title": "Edges",
+              "type": "array"
+            }
+          },
+          "type": "object",
+          "required": [
+            "edges",
+            "nodes"
+          ]
+        }
+      }
+    }
+  ]
+}
+
+--- OUTGOING to chat/completions ---
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "Summarize the chunk for retrieval.\n\nOutput two sections only.\n\nFirst section:\nThis chunk is about:\n- <Category>: <names or topics>\n- <Category>: <names or topics>\n\nFirst-section rules:\n1. List entity/topic categories. Do not list facts here.\n2. Use only clear, useful categories.\n3. Good categories include People, Companies, Organizations, Places, Roles, Projects, Products, Systems, Concepts, Events, and Topics.\n4. Keep category lines short.\n\nSecond section:\nFacts:\n- <self-contained fact>\n- <self-contained fact>\n\nSecond-section rules:\n1. Write complete sentences with clear subjects from the first section.\n2. Each fact must stand alone without the chunk or the other facts.\n3. Order facts by: time first, category second, entity/topic third.\n4. Do not group all facts about one entity if that makes the facts jump backward or forward in time.\n5. Make sure the facts cover the full content of the chunk.\n6. Do not invent.\n\nMax 200 tokens.\n"
+    },
+    {
+      "role": "user",
+      "content": "[FILE_CREATED - STRUCTURAL]\nProject File: assets\nStatus: FILE_CREATED\nContent:\n[Content not indexed - Structural change only]"
+    }
+  ],
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "tool_choice": {
+    "type": "function",
+    "function": {
+      "name": "SummarizedContent"
+    }
+  },
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "SummarizedContent",
+        "description": "Bulleted memory record produced by chunk summarization.",
+        "parameters": {
+          "properties": {
+            "summary": {
+              "description": "One leading sentence stating what the input is about, followed by a bulleted list of self-contained facts.",
+              "title": "Summary",
+              "type": "string"
+            },
+            "description": {
+              "default": "",
+              "description": "Unused; kept for backwards compatibility.",
+              "title": "Description",
+              "type": "string"
+            }
+          },
+          "required": [
+            "summary"
+          ],
+          "type": "object"
+        }
+      }
+    }
+  ]
+}
+
+--- OUTGOING to embeddings ---
+{
+  "input": [
+    "text_71a4de092e5b9bc992ef284c53dd0999"
+  ],
+  "model": "nvidia/nv-embed-v1",
+  "input_type": "query"
+}
+
+--- OUTGOING to embeddings ---
+{
+  "input": [
+    "Noted: Project file 'assets' has been created (structural change only)."
+  ],
+  "model": "nvidia/nv-embed-v1",
+  "input_type": "query"
+}
+
+--- OUTGOING to embeddings ---
+{
+  "input": [
+    "[FILE_CREATED - STRUCTURAL]\nProject File: assets\nStatus: FILE_CREATED\nContent:\n[Content not indexed - Structural change only]"
+  ],
+  "model": "nvidia/nv-embed-v1",
+  "input_type": "query"
+}
+
+--- OUTGOING to embeddings ---
+{
+  "input": [
+    "Noted: Project file 'assets' has been created (structural change only). made from [FILE_CREATED - STRUCTURAL] Project File: assets Status: FILE_CREATED Content: [.",
+    "[FILE_CREATED - STRUCTURAL] Project File: assets Status: FILE_CREATED Content: [ is part of text_71a4de092e5b9bc992ef284c53dd0999."
+  ],
+  "model": "nvidia/nv-embed-v1",
+  "input_type": "query"
+}

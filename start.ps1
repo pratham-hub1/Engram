@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-Write-Host "Starting Memory AI Backend..." -ForegroundColor Green
+Write-Host "Starting Engram Backend..." -ForegroundColor Green
 
 # Check if virtual environment exists, if not, create and install
 if (-not (Test-Path ".venv")) {

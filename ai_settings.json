@@ -1,6 +1,6 @@
 {
   "project": {
-    "name": "Memory AI",
+    "name": "Engram",
     "description": "A local-first AI memory layer that continuously understands software projects, preserves knowledge using Cognee, and makes that understanding instantly available to developers and AI assistants.",
     "mission": "Eliminate the pain of losing project understanding across time, sessions, tools, and AI assistants.",
     "status": "Phase 0 — Not Started"

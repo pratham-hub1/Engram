@@ -1,4 +1,4 @@
-# Memory AI Project Requirements
+# Engram Project Requirements
 # Backend Framework
 fastapi
 uvicorn[standard]
@@ -21,3 +21,4 @@ gitpython
 litellm
 
 # test dep
+mcp

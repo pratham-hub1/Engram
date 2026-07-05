@@ -74,7 +74,7 @@ The LLM is only used when structured understanding needs to be extracted from ra
           └─────────────────────────────────┘
                             │
                       LLM Provider
-                  (Gemini Free Tier default)
+                  (Nvidia nemotron-3-super-120b-a12b default)
                             │
           ┌─────────────────────────────────┐
           │         Cognee Memory            │
@@ -196,14 +196,17 @@ The pipeline has two paths after deduplication. LLM is only invoked when reasoni
    cognee.remember()         cognee.remember()
 ```
 
-**Event Normalizer** — standardizes raw events into a uniform internal format regardless of source.
-Produces a structured event with: type, diff, metadata, evidence. No AI.
+**Event Normalizer** — standardizes raw events into a uniform internal format. For structural changes, it wraps raw git diffs in natural language templates.
+- **Matrix Vision (AST Dependency Extractor):** For modified `.py`, `.js`, and `.ts` files on Git Commits, it uses lightweight regex to extract `import/require` statements and injects them as English structural edges (e.g., "File auth.py imports database.py"). Cognee natively translates this into physical graph edges without needing heavy AST parsers.
 
-**Deduplicator** — prevents the same content being ingested repeatedly.
-Uses content hashing and time-window batching. No AI.
+**Deduplicator / State Manager** — prevents redundant ingestion. 
+- Uses content hashing to drop duplicate saves.
+- **CRITICAL:** When a file changes, it looks up the old `data_id` in SQLite, and calls `cognee.forget()` on the old state *before* allowing the new state into the pipeline. This prevents stale state accumulation in the graph.
 
 **LLM Interpretation** — runs ONLY when reasoning extraction is the goal:
-- Commit message contains explicit reasoning language, or event is a Tier 2 manual decision note. For structural changes (dependency added, config modified, module deleted), the structured event from the Normalizer is passed directly to `cognee.remember()`. Cognee's own internal LLM handles entity extraction during ingestion. No double-processing. 
+- Commit message contains explicit reasoning language, or event is a Tier 2 manual decision note. 
+- **Ticking Time Bomb Debt:** If a `#expires:YYYY-MM-DD` tag is detected in a manual note or commit, it is parsed and stored in the SQLite metadata column. This powers the `/prune` capability.
+For structural changes (dependency added, config modified, module deleted), the structured event from the Normalizer is passed directly to `cognee.remember()`. Cognee's own internal LLM handles entity extraction during ingestion. No double-processing. 
 The event's type is preserved via metadata to allow filtering during retrieval.
 
 **cognee.remember()** — the final stage. Structured knowledge enters the graph.
@@ -247,7 +250,7 @@ for a reason immediately after committing, when the decision is fresh:
 
 ```bash
 $ git commit -m "Switch auth to JWT"
-Memory AI: Architectural change detected. Reason? (Enter to skip):
+Engram: Architectural change detected. Reason? (Enter to skip):
 > Chose JWT because Firebase has no offline mode
 ✓ Decision captured.
 ```
@@ -277,15 +280,15 @@ Business logic never depends on a specific model.
 
 | Provider | Model | Status |
 |---|---|---|
-| Gemini | gemini-1.5-flash | Default (hackathon) |
+| Nvidia | nemotron-3-super-120b-a12b | Default (via AI Gateway) |
 | Cognee Cloud (included models) | — | Available if included |
 | OpenAI | — | Supported |
 | Ollama | — | Future (offline/local) |
 
-The default model is **gemini-1.5-flash**, not Pro.
+The default model is **nemotron-3-super-120b-a12b**, accessed via our local proxy gateway.
 Flash has significantly higher free-tier rate limits.
 Cognee makes its own LLM calls during `remember()` and `improve()`.
-Those calls share the same Gemini quota as our pipeline's extraction calls.
+Those calls share the same Nvidia quota as our pipeline's extraction calls.
 Using Flash minimises quota exhaustion risk.
 
 No LLM costs should be incurred during development or demo.
@@ -310,7 +313,7 @@ Data stored in `.cognee_system/` directory.
 ### API Usage Rules
 
 **Unified Dataset Rule**
-- To prevent Knowledge Graph fracturing, **every project uses exactly ONE unified dataset** (e.g., `dataset_name="memory_ai_core"`). 
+- To prevent Knowledge Graph fracturing, **every project uses exactly ONE unified dataset** (e.g., `dataset_name="engram_core"`). 
 - Do not split commits and decisions into separate datasets.
 
 **`remember()`**
@@ -322,7 +325,7 @@ Data stored in `.cognee_system/` directory.
 
 **`recall()`**
 - Results are pre-ranked by `importance_weight` (updated by `improve()`). No re-ranking needed.
-- Pass `datasets=["memory_ai_core"]` to query the unified project graph.
+- Pass `datasets=["engram_core"]` to query the unified project graph.
 - Since `recall()` does not natively filter by category, the Memory Orchestrator filters results post-retrieval based on document prefixes or SQLite metadata mappings.
 - Use `query_type` to select retrieval strategy (must pass Enum, e.g., `SearchType.VECTOR`, not strings):
 
@@ -391,7 +394,7 @@ Views:
 
 The dashboard never edits memory directly.
 
-It only visualizes memory.
+It only visualizes memory. To achieve real-time streaming effects for the Multi-Hop Detective, the Dashboard utilizes a **staggered UI theater effect**, rendering the static `reasoning_path` array sequentially without backend SSE load. The `MemorySummaryGraph` view uses D3 to visualize the deterministic subgraph provided by `/api/graph/summary`.
 
 **Memory Health data sources:**
 - All stats (memory count by node_set, last improve() timestamp, nudge queue, skip counts)
@@ -483,10 +486,10 @@ AI assistant needs project context
   → AI assistant uses context without developer intervention
 ```
 
-## Flow 5 — Scheduled Memory Improvement
+## Flow 5 — Scheduled Memory Improvement (The Dream Cycle)
 
 ```
-Scheduled interval reached (default: every 60 minutes)
+Scheduled interval reached (default: every 60 minutes) OR manually triggered via POST /api/memory/improve
   → cognee.improve() runs as background asyncio task
   → Strengthens graph relationships
   → Organizes accumulated knowledge
@@ -514,6 +517,39 @@ Optional git hook path (if installed by developer):
   → Hook prompts: "Reason? (Enter to skip)"
   → If provided: enters Memory Pipeline as Tier 2 note → LLM Interpretation path
   → If skipped: structural path continues normally
+```
+
+## Flow 7 — Multi-Hop Detective (Root Cause Analysis)
+
+```
+Developer triggers /api/memory/root-cause with symptom: "auth is failing"
+  → Hop 1: Orchestrator calls cognee.recall(SearchType.CHUNKS_ONLY)
+      Returns raw code chunks related to "auth"
+  → Hop 2: Orchestrator calls cognee.recall(SearchType.GRAPH_COMPLETION) 
+      Prompts: "Based on these files, what decisions govern them?"
+  → Returns highly contextualized architectural root cause linking code to intent
+```
+
+## Flow 8 — Ticking Time Bomb Debt (Surgical Prune)
+
+```
+Developer runs /api/memory/prune
+  → SQLite queried for all logs where metadata->>'expires_at' is past today
+  → For each expired data_id:
+      cognee.forget(data_id) executes, purging vector chunks and edges
+      SQLite log row is deleted
+  → Graph is instantly cleansed of expired technical debt
+```
+
+## Flow 9 — Hackathon Deterministic Visualizations
+
+```
+Developer requests Memory Summary Graph
+  → Dashboard calls /api/graph/summary
+  → Backend queries application SQLite log for recent deterministic structural events
+  → Builds a fast D3-compatible JSON payload of core nodes + edges
+  → Completely bypasses Cognee's internal KuzuDB export (prevents massive payload lockups)
+  → Dashboard renders D3 Force simulation in <0.1s
 ```
 
 ---
@@ -559,3 +595,4 @@ Optional git hook path (if installed by developer):
 Every component has exactly one responsibility.
 
 No component may cross its defined boundary.
+
