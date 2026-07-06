@@ -3,7 +3,7 @@
 
 *Architected and engineered solo by @pratham-hub1 for the WeMakeDevs Hangover AI Hackathon.* 🏆
 
-👉 Watch the 3-Minute Demo Video -> https://youtu.be/KBjiBrCANG8?si=ptA44Wtrn5Ra2sk7
+👉 [Watch the 3-Minute Demo Video](https://youtu.be/KBjiBrCANG8?si=ptA44Wtrn5Ra2sk7)
 
 ---
 
@@ -31,7 +31,7 @@ Code survives. The reasoning doesn't. That's the gap.
 
 ## See It Work
 
-> <img width="670" height="552" alt="image" src="https://github.com/user-attachments/assets/b1230d63-cf12-456c-925a-39eeca3a2dee" />
+> ![Demo](demo.gif)
 
 Engram doesn't guess. It walks the graph — decision → commit → docs → files — and shows you the path it took to get there.
 
@@ -41,11 +41,13 @@ Engram doesn't guess. It walks the graph — decision → commit → docs → fi
 
 | | Traditional RAG | Engram (via Cognee) |
 |---|---|---|
-| Unit of retrieval | Document chunks | Connected nodes (decisions, commits, files, docs) |
-| Answers "what changed" | Yes | Yes |
-| Answers "why it changed" | Rarely — the reasoning is usually spread across sources | Yes — traverses the chain that produced the change |
-| Multi-hop questions | Poor — returns the single best-matching chunk | Native — follows relationships across hops |
-| Answer grounding | Loosely similar text | Traceable path back to source evidence |
+| **Unit of retrieval** | Document chunks | Connected nodes (decisions, commits, files, docs) |
+| **Answers "what changed"** | Yes | Yes |
+| **Answers "why it changed"** | Rarely — the reasoning is usually spread across sources | Yes — traverses the chain that produced the change |
+| **Multi-hop questions** | Poor — returns the single best-matching chunk | Native — follows relationships across hops |
+| **Answer grounding** | Loosely similar text | Traceable path back to source evidence |
+| **Hallucination Risk** | High — LLM guesses when chunks lack context | Near Zero — Refuses to answer if a strict graph path doesn't exist |
+| **Privacy / Execution** | Often sends massive, unorganized chunks to cloud APIs | 100% Local Graph — Only targeted reasoning prompts leave your machine 
 
 RAG is built to find *a* relevant paragraph. Engram is built to find *the chain* that explains a decision. Cognee is the piece that makes that chain queryable — a persistent graph memory layer, not a magic reasoning engine. Engram's job is the reasoning on top; Cognee's job is making the connections exist in the first place.
 
@@ -72,7 +74,7 @@ If Engram can't trace an answer back to something concrete in the graph, it does
 
 ## Built On Its Own Memory
 
-Every screenshot in this README — the timeline, the decisions, the architecture graph — is Engram's actual development history, captured by Engram while it was being built. Not seed data. Not a staged demo.
+The reasoning trace you see in this README is Engram's actual development history, captured by Engram while it was being built. Not seed data. Not a staged demo. 
 
 We used the product to remember why we built the product. If it didn't work, we'd have noticed first.
 
@@ -109,12 +111,14 @@ Engineering context loss isn't hypothetical — it's the reason onboarding takes
 ```
 [ Developer Works ] ──> [ Background Observer ]
                                 │
-                       [ Event Intelligence Pipeline ]
-                                │
+                       [ Event Intelligence Pipeline ] ──> [ NVIDIA Gateway Sidecar ]
+                                │                               (Schema Translation)
                         [ Cognee Knowledge Graph ]
                                 │ (SQLite + LanceDB + KuzuDB)
+                                │
+                        [ FastAPI Core Backend ]
            ┌────────────────────┴────────────────────┐
-           │                                          │
+           │                                         │
   [ Dashboard (React + D3) ]              [ MCP Server (experimental) ]
   Production-ready today                  Foundation laid, not demo-ready
 ```
@@ -175,7 +179,7 @@ Every architecture involves choices that trade one property for another. These a
 | **Mission Control** | High-level synthesis of recent activity, live. |
 | **Ask Your Project** | Ask a question, see the reasoning path behind the answer. |
 | **Neural Ledger** | Log decisions manually; browse what's been captured. |
-| **Evolution** | Watch the architecture graph change shape over time. |
+| **Milestones** | Watch the architecture graph change shape over time. |
 | **Memory Health** | What's being tracked, and how large the local graph is. |
 
 ---
@@ -287,12 +291,10 @@ async def recall_memory(query: str, dataset_name: str, system_prompt: str):
         datasets=[dataset_name]
     )
     
-    return results
-```
-    
     # Engram doesn't just return the generated text. 
     # 'results' contains the subgraph path, which we parse and render as 'receipts' in the UI.
     return results 
+```
 
 ---
 
