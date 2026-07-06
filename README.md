@@ -1,7 +1,7 @@
 
 # 🧠 Engram
 
-*Architected and engineered solo by @pratham-hub1 for the WeMakeDevs Hangover AI Hackathon.* 🏆
+*Architected and engineered solo by @pratham-hub1 for the WeMakeDevs Hangover AI Hackathon.* 
 
 👉 [Watch the 3-Minute Demo Video](https://youtu.be/KBjiBrCANG8?si=ptA44Wtrn5Ra2sk7)
 
@@ -11,11 +11,13 @@
 
 Every AI coding assistant forgets your project the moment the session ends. Engram doesn't. It runs quietly in the background, watches your commits, docs, and decisions, and builds a persistent knowledge graph of *why* your project looks the way it does — powered by [Cognee](https://www.cognee.ai).
 
-Ask it a question. It answers with the commit, the doc, or the decision that backs it up.
+Ask it a question. 
 
+Every answer includes the evidence trail that produced it. It answers with the commit, the doc, or the decision that backs it up.
 
+Traditional search retrieves documents.
 
-Traditional search finds documents. Engram finds the chain of reasoning behind them — because Cognee lets us store project knowledge as a connected graph, not a pile of text to match keywords against. That distinction is the whole product.
+Engram reconstructs engineering decisions by traversing the relationships between commits, documentation, files, and developer notes. Cognee makes those relationships persistent instead of treating them as isolated chunks of text.
 
 ---
 
@@ -26,6 +28,9 @@ You explain your project to an AI assistant. You close the tab. Tomorrow, you ex
 Six months from now, someone asks why the auth system was redesigned. The commit is there. The reasoning isn't. It lived in a Slack thread, a standup, someone's memory — and none of that survives.
 
 Code survives. The reasoning doesn't. That's the gap.
+
+The goal isn't to remember code.
+It's to preserve engineering decisions before they disappear.
 
 ---
 
@@ -46,7 +51,7 @@ Engram doesn't guess. It walks the graph — decision → commit → docs → fi
 | **Answers "why it changed"** | Rarely — the reasoning is usually spread across sources | Yes — traverses the chain that produced the change |
 | **Multi-hop questions** | Poor — returns the single best-matching chunk | Native — follows relationships across hops |
 | **Answer grounding** | Loosely similar text | Traceable path back to source evidence |
-| **Hallucination Risk** | High — LLM guesses when chunks lack context | Near Zero — Refuses to answer if a strict graph path doesn't exist |
+| **Hallucination Risk** | High — LLM guesses when chunks lack context | Grounded Answers — Evidence-backed through graph traversal and source tracing |
 | **Privacy / Execution** | Often sends massive, unorganized chunks to cloud APIs | 100% Local Graph — Only targeted reasoning prompts leave your machine 
 
 RAG is built to find *a* relevant paragraph. Engram is built to find *the chain* that explains a decision. Cognee is the piece that makes that chain queryable — a persistent graph memory layer, not a magic reasoning engine. Engram's job is the reasoning on top; Cognee's job is making the connections exist in the first place.
@@ -270,7 +275,7 @@ The NIM gateway (`backend/gateway.py`, port 5001) is internal — it isn't calle
 
 ## Under the Hood: How We Use Cognee
 
-We didn't want to just wrap an LLM around a standard vector database. The magic of Engram happens when we ask Cognee to traverse the actual relationships between files, decisions, and commits. 
+We didn't want to just wrap an LLM around a standard vector database. The core reasoning pipeline is built around Cognee's graph traversal, allowing Engram to follow relationships between files, decisions, and commits instead of retrieving isolated documents.
 
 Here is the exact query engine that powers the "Ask Your Project" bar. Notice that we bypass standard similarity search entirely in favor of Cognee's `GRAPH_COMPLETION`. This forces the engine to walk the connected graph to find the *chain of reasoning* before returning an answer:
 
@@ -286,7 +291,7 @@ async def recall_memory(query: str, dataset_name: str, system_prompt: str):
     """
     results = await cognee.search(
         query_text=query,
-        query_type=SearchType.GRAPH_COMPLETION, # The secret sauce: Graph traversal, not just vector match
+        query_type=SearchType.GRAPH_COMPLETION, # Graph traversal instead of vector only search
         system_prompt=system_prompt,
         datasets=[dataset_name]
     )
