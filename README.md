@@ -1,8 +1,13 @@
-# Built for the Cognee AI Hackathon 2026
 
 # 🧠 Engram
 
-**Code tells you what changed. Project memory tells you why.**
+*Architected and engineered solo by @pratham-hub1 for the WeMakeDevs Hangover AI Hackathon.* 🏆
+
+👉 Watch the 3-Minute Demo Video -> https://youtu.be/KBjiBrCANG8?si=ptA44Wtrn5Ra2sk7
+
+---
+
+*Code tells you what changed. Project memory tells you why.*
 
 Every AI coding assistant forgets your project the moment the session ends. Engram doesn't. It runs quietly in the background, watches your commits, docs, and decisions, and builds a persistent knowledge graph of *why* your project looks the way it does — powered by [Cognee](https://www.cognee.ai).
 
@@ -51,7 +56,7 @@ RAG is built to find *a* relevant paragraph. Engram is built to find *the chain*
 - Git commits
 - Documentation changes
 - Configuration updates
-- Structural code relationships (`auth.js` imports `db.js`)
+- Structural code elements (file imports, key classes, and functions)
 - Developer decision notes
 
 All of it flows into Cognee and becomes part of one graph. When you ask a question, Engram answers from that graph — and shows the evidence, not just a conclusion.
@@ -113,8 +118,6 @@ Engineering context loss isn't hypothetical — it's the reason onboarding takes
   [ Dashboard (React + D3) ]              [ MCP Server (experimental) ]
   Production-ready today                  Foundation laid, not demo-ready
 ```
-
-> ![Placeholder: Architecture diagram]
 
 Two ways knowledge enters the graph:
 
@@ -261,6 +264,38 @@ The NIM gateway (`backend/gateway.py`, port 5001) is internal — it isn't calle
 
 ---
 
+## Under the Hood: How We Use Cognee
+
+We didn't want to just wrap an LLM around a standard vector database. The magic of Engram happens when we ask Cognee to traverse the actual relationships between files, decisions, and commits. 
+
+Here is the exact query engine that powers the "Ask Your Project" bar. Notice that we bypass standard similarity search entirely in favor of Cognee's `GRAPH_COMPLETION`. This forces the engine to walk the connected graph to find the *chain of reasoning* before returning an answer:
+
+
+```python
+from cognee.modules.search.types.SearchType import SearchType
+import cognee
+async def recall_memory(query: str, dataset_name: str, system_prompt: str):
+    """
+    We don't search for disjointed documents. We search for the chain of reasoning.
+    This forces Cognee to traverse the connected nodes (Decision -> Commit -> File)
+    to ground every answer in verifiable project history.
+    """
+    results = await cognee.search(
+        query_text=query,
+        query_type=SearchType.GRAPH_COMPLETION, # The secret sauce: Graph traversal, not just vector match
+        system_prompt=system_prompt,
+        datasets=[dataset_name]
+    )
+    
+    return results
+```
+    
+    # Engram doesn't just return the generated text. 
+    # 'results' contains the subgraph path, which we parse and render as 'receipts' in the UI.
+    return results 
+
+---
+
 ## Tech Stack
 
 | Layer | Technology | Role in the Architecture |
@@ -283,17 +318,8 @@ The NIM gateway (`backend/gateway.py`, port 5001) is internal — it isn't calle
 
 ## What's Next: Architectural Evolution (V2)
 
-The dashboard is the front door today. The next step is an MCP server so any compatible AI assistant can query the same project memory directly. 
-
-Additionally, we have identified several architectural evolutions for our V2 roadmap to transition our stable prototype into a production-scale distributed system:
-
-| Current Limitation | V2 Architectural Evolution |
-|---------|-------------------|
-| `improve()` batch spam | **Event-driven improvement queue** to dynamically self-tune batch ingestion. |
-| SQLite Indexing flag | **Idempotent content-addressable indexing** using hashed file manifests. |
-| Thread-blocking ingestions | **Fire-and-forget callback channel** decoupled from the pipeline loop. |
-| Side-effect validation | **Deterministic ID ownership & verification** natively within Cognee wrappers. |
-| Observer git assumptions | **Signal → Intelligence → Pipeline** strict boundary decoupling. |
+The dashboard is the front door today. The next step is an MCP server so any compatible AI assistant can query the same project memory directly, instead of the dashboard being the only way in. 
+The foundation exists in the codebase today. For this hackathon, we prioritized the visual dashboard because proving the graph traversal visually was critical. Hardening the MCP server to make it the primary entry point for AI assistants is our immediate next step.
 
 ---
 
