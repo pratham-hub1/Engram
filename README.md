@@ -275,31 +275,61 @@ The NIM gateway (`backend/gateway.py`, port 5001) is internal — it isn't calle
 
 ## Under the Hood: How We Use Cognee
 
-We didn't want to just wrap an LLM around a standard vector database. The core reasoning pipeline is built around Cognee's graph traversal, allowing Engram to follow relationships between files, decisions, and commits instead of retrieving isolated documents.
+We didn't want to build another AI wrapper around a vector database. Engram is architected around Cognee's complete memory lifecycle.
 
-Here is the exact query engine that powers the "Ask Your Project" bar. Notice that we bypass standard similarity search entirely in favor of Cognee's `GRAPH_COMPLETION`. This forces the engine to walk the connected graph to find the *chain of reasoning* before returning an answer:
+Instead of using Cognee only for retrieval, we built our ingestion, optimization, retrieval, and cleanup pipelines around its four core primitives: `remember()`, `improve()`, `search()`, and `forget()`.
 
+### `remember()` — Deterministic Memory Ingestion
+
+Every captured event (commits, documentation updates, configuration changes, structural relationships, and developer decisions) enters the graph through `cognee.remember()`.
+
+Rather than relying on randomly generated IDs, Engram creates deterministic UUIDs from file hashes before ingestion. This prevents duplicate graph nodes, eliminates phantom memories across rescans, and keeps the graph stable over long-running projects.
+
+---
+
+### `improve()` — Background "Dream Cycle"
+
+Running graph optimization after every filesystem event makes ingestion slower and wastes reasoning calls.
+
+Instead, Engram decouples `cognee.improve()` into a scheduled background "Dream Cycle". The observer keeps capturing events while graph optimization happens asynchronously, allowing the memory graph to continuously improve without blocking the developer workflow.
+
+---
+
+### `search()` — Multi-Hop Graph Recall
+
+The "Ask Your Project" experience is powered by Cognee's graph traversal instead of traditional similarity search.
 
 ```python
 from cognee.modules.search.types.SearchType import SearchType
 import cognee
+
 async def recall_memory(query: str, dataset_name: str, system_prompt: str):
     """
-    We don't search for disjointed documents. We search for the chain of reasoning.
-    This forces Cognee to traverse the connected nodes (Decision -> Commit -> File)
-    to ground every answer in verifiable project history.
+    We don't search for disjointed documents.
+    We search for the chain of reasoning.
+
+    Decision → Commit → Documentation → File
     """
+
     results = await cognee.search(
         query_text=query,
-        query_type=SearchType.GRAPH_COMPLETION, # Graph traversal instead of vector only search
+        query_type=SearchType.GRAPH_COMPLETION, # Graph traversal, not just vector match
         system_prompt=system_prompt,
         datasets=[dataset_name]
     )
-    
-    # Engram doesn't just return the generated text. 
-    # 'results' contains the subgraph path, which we parse and render as 'receipts' in the UI.
-    return results 
+
+    return results
 ```
+
+Instead of retrieving isolated document chunks, `GRAPH_COMPLETION` traverses connected nodes inside the knowledge graph. Engram then parses the returned reasoning path and renders it in the UI as evidence-backed "receipts", allowing users to see exactly how an answer was derived.
+
+---
+
+### `forget()` — Self-Healing Memory Cleanup
+
+When files disappear or noisy events should no longer exist inside project memory, Engram calls `cognee.forget()` using the same deterministic UUID generated during ingestion.
+
+This keeps the graph synchronized with the real project instead of allowing stale or orphaned memories to accumulate over time.
 
 ---
 
