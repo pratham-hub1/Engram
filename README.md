@@ -1,9 +1,9 @@
 
-# 🧠 Engram
+# Engram
 
 *Architected and engineered solo by @pratham-hub1 for the WeMakeDevs Hangover AI Hackathon.* 
 
-👉 [Watch the 3-Minute Demo Video](https://youtu.be/KBjiBrCANG8?si=ptA44Wtrn5Ra2sk7)
+[Watch the 3-Minute Demo Video](https://youtu.be/KBjiBrCANG8?si=ptA44Wtrn5Ra2sk7)
 
 ---
 
